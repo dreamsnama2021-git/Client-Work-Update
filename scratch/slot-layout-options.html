@@ -1,0 +1,459 @@
+<title>Slot Layout Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --radius: 0.625rem;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.15 0.02 260);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.15 0.02 260);
+    --primary: oklch(0.47 0.19 264);
+    --primary-foreground: oklch(0.98 0.01 264);
+    --muted: oklch(0.96 0.01 260);
+    --muted-foreground: oklch(0.5 0.02 260);
+    --accent: oklch(0.94 0.03 264);
+    --warning: oklch(0.75 0.15 80);
+    --warning-foreground: oklch(0.2 0.05 80);
+    --success: oklch(0.6 0.15 150);
+    --border: oklch(0.9 0.01 260);
+    --input-bg: oklch(0.98 0.005 260);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --background: oklch(0.14 0.02 260);
+      --foreground: oklch(0.96 0.01 260);
+      --card: oklch(0.18 0.02 260);
+      --card-foreground: oklch(0.96 0.01 260);
+      --primary: oklch(0.68 0.17 264);
+      --primary-foreground: oklch(0.14 0.02 260);
+      --muted: oklch(0.24 0.02 260);
+      --muted-foreground: oklch(0.65 0.02 260);
+      --accent: oklch(0.28 0.05 264);
+      --warning: oklch(0.75 0.15 80);
+      --warning-foreground: oklch(0.16 0.03 80);
+      --success: oklch(0.65 0.15 150);
+      --border: oklch(0.28 0.02 260);
+      --input-bg: oklch(0.22 0.02 260);
+    }
+  }
+  :root[data-theme="dark"] {
+    --background: oklch(0.14 0.02 260);
+    --foreground: oklch(0.96 0.01 260);
+    --card: oklch(0.18 0.02 260);
+    --card-foreground: oklch(0.96 0.01 260);
+    --primary: oklch(0.68 0.17 264);
+    --primary-foreground: oklch(0.14 0.02 260);
+    --muted: oklch(0.24 0.02 260);
+    --muted-foreground: oklch(0.65 0.02 260);
+    --accent: oklch(0.28 0.05 264);
+    --warning: oklch(0.75 0.15 80);
+    --warning-foreground: oklch(0.16 0.03 80);
+    --success: oklch(0.65 0.15 150);
+    --border: oklch(0.28 0.02 260);
+    --input-bg: oklch(0.22 0.02 260);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  .intro { max-width: 640px; margin-bottom: 2rem; }
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .intro p {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--muted-foreground);
+    margin: 0;
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .option {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 4px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .option-head {
+    padding: 1.1rem 1.25rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .option-head .label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .option-head h2 {
+    font-size: 1.02rem;
+    font-weight: 600;
+    margin: 0.15rem 0 0;
+  }
+  .option-head .tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--primary);
+    white-space: nowrap;
+  }
+
+  .option-body { padding: 1.1rem 1.25rem 1.3rem; }
+
+  .card-mini {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .card-mini-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.9rem;
+  }
+  .card-mini-head h3 {
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .target-pill {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .slot {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.75rem 0.85rem;
+    margin-bottom: 0.65rem;
+  }
+  .slot:last-child { margin-bottom: 0; }
+  .slot-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.55rem;
+  }
+  .slot-name { font-size: 0.82rem; font-weight: 600; }
+  .slot-frac {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .slot-frac span { color: var(--muted-foreground); font-weight: 500; }
+
+  .dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+  }
+  .date-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    font-size: 0.74rem;
+  }
+  .date-row .dl {
+    color: var(--muted-foreground);
+    min-width: 6.4rem;
+    flex-shrink: 0;
+  }
+  .date-row .dv {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .approval-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.74rem;
+    color: var(--muted-foreground);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+  .chip.on {
+    background: var(--warning);
+    color: var(--warning-foreground);
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .dot {
+    width: 6px; height: 6px; border-radius: 999px;
+    background: currentColor; opacity: 0.6;
+  }
+
+  .add-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px dashed var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 0.65rem;
+  }
+  .plus { font-size: 0.95rem; line-height: 1; }
+
+  .total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+  .total-row .tl { font-size: 0.78rem; color: var(--muted-foreground); }
+  .total-row .tv {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .verdict {
+    padding: 0.85rem 1.25rem 1.1rem;
+    border-top: 1px solid var(--border);
+    background: var(--muted);
+  }
+  .verdict p {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: var(--muted-foreground);
+  }
+  .verdict strong { color: var(--foreground); }
+
+  .footer-note {
+    max-width: 640px;
+    margin: 2rem auto 0;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .footer-note b { color: var(--primary); }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <p class="eyebrow">ClientFlow · Work Status slots</p>
+    <h1>Which slot layout should each Static / Reel entry use?</h1>
+    <p>
+      Both options below track the same thing — Slot 1 (4 done) and Slot 2 (2 done),
+      adding up to 6 of 8 target, with a per-slot Client/Team approval toggle. They
+      only differ in how much date detail sits on each slot card.
+    </p>
+  </div>
+
+  <div class="columns">
+    <div class="option">
+      <div class="option-head">
+        <div>
+          <p class="label">Option A</p>
+          <h2>One date per slot</h2>
+        </div>
+        <span class="tag">Simpler</span>
+      </div>
+      <div class="option-body">
+        <div class="card-mini">
+          <div class="card-mini-head">
+            <h3>Static</h3>
+            <span class="target-pill">target 8</span>
+          </div>
+
+          <div class="slot">
+            <div class="slot-top">
+              <span class="slot-name">Slot 1</span>
+              <span class="slot-frac">4<span>/8</span></span>
+            </div>
+            <div class="dates">
+              <div class="date-row">
+                <span class="dl">Posted</span>
+                <span class="dv">5 Sep, 2:00 PM</span>
+              </div>
+            </div>
+            <div class="approval-row">
+              Approval
+              <span class="chip on">Client</span>
+              <span class="chip">Team</span>
+            </div>
+          </div>
+
+          <div class="slot">
+            <div class="slot-top">
+              <span class="slot-name">Slot 2</span>
+              <span class="slot-frac">2<span>/8</span></span>
+            </div>
+            <div class="dates">
+              <div class="date-row">
+                <span class="dl">Posted</span>
+                <span class="dv">7 Sep, 1:00 PM</span>
+              </div>
+            </div>
+            <div class="approval-row">
+              Approval
+              <span class="chip">Client</span>
+              <span class="chip on">Team</span>
+            </div>
+          </div>
+
+          <div class="add-slot"><span class="plus">+</span> Add Slot</div>
+
+          <div class="total-row">
+            <span class="tl">Total Complete / Target</span>
+            <span class="tv">6/8</span>
+          </div>
+        </div>
+      </div>
+      <div class="verdict">
+        <p>
+          <strong>One field: "Posted".</strong> Fast to fill in — you log a slot the
+          moment it goes out. No history of how the approval moved, just where it
+          landed right now.
+        </p>
+      </div>
+    </div>
+
+    <div class="option">
+      <div class="option-head">
+        <div>
+          <p class="label">Option B</p>
+          <h2>Three dates per slot</h2>
+        </div>
+        <span class="tag">Full timeline</span>
+      </div>
+      <div class="option-body">
+        <div class="card-mini">
+          <div class="card-mini-head">
+            <h3>Static</h3>
+            <span class="target-pill">target 8</span>
+          </div>
+
+          <div class="slot">
+            <div class="slot-top">
+              <span class="slot-name">Slot 1</span>
+              <span class="slot-frac">4<span>/8</span></span>
+            </div>
+            <div class="dates">
+              <div class="date-row">
+                <span class="dl">Ready</span>
+                <span class="dv">5 Sep, 2:00 PM</span>
+              </div>
+              <div class="date-row">
+                <span class="dl">Sent to client</span>
+                <span class="dv">5 Sep, 3:00 PM</span>
+              </div>
+              <div class="date-row">
+                <span class="dl">Approved</span>
+                <span class="dv">7 Sep, 2:00 PM</span>
+              </div>
+            </div>
+            <div class="approval-row">
+              Approval
+              <span class="chip on">Client</span>
+              <span class="chip">Team</span>
+            </div>
+          </div>
+
+          <div class="slot">
+            <div class="slot-top">
+              <span class="slot-name">Slot 2</span>
+              <span class="slot-frac">2<span>/8</span></span>
+            </div>
+            <div class="dates">
+              <div class="date-row">
+                <span class="dl">Ready</span>
+                <span class="dv">7 Sep, 1:00 PM</span>
+              </div>
+              <div class="date-row">
+                <span class="dl">Sent to client</span>
+                <span class="dv">7 Sep, 3:00 PM</span>
+              </div>
+              <div class="date-row">
+                <span class="dl">Approved</span>
+                <span class="dv">10 Sep, 2:00 PM</span>
+              </div>
+            </div>
+            <div class="approval-row">
+              Approval
+              <span class="chip">Client</span>
+              <span class="chip on">Team</span>
+            </div>
+          </div>
+
+          <div class="add-slot"><span class="plus">+</span> Add Slot</div>
+
+          <div class="total-row">
+            <span class="tl">Total Complete / Target</span>
+            <span class="tv">6/8</span>
+          </div>
+        </div>
+      </div>
+      <div class="verdict">
+        <p>
+          <strong>Three fields: Ready, Sent to client, Approved.</strong> Shows the
+          full turnaround per slot (here: 2 days from ready to approved) — useful for
+          spotting slow approvals, but three date pickers to fill in every time.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Reply with <b>A</b> or <b>B</b> (or mix — e.g. "A, but keep the Sent-to-client date too") and I'll build the real slot feature with that layout.
+  </div>
+</div>
