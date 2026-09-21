@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV_ITEMS } from "./nav-config";
 
@@ -38,11 +39,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-          <Link href="/admin" className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-              C
-            </div>
-            <span className="text-sm font-semibold">ClientFlow</span>
+          <Link href="/admin" aria-label="Greens Media dashboard" className="flex items-center">
+            <BrandLogo className="h-12 p-0.5" />
           </Link>
           <button
             type="button"
@@ -80,7 +78,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         <div className="border-t border-border p-4">
           <p className="text-xs text-muted-foreground">
-            ClientFlow &copy; {new Date().getFullYear()}
+            Greens Media &copy; {new Date().getFullYear()}
           </p>
         </div>
       </aside>

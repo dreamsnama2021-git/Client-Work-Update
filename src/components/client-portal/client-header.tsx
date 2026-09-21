@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown";
@@ -53,11 +54,8 @@ export function ClientHeader({ user, notifications }: ClientHeaderProps) {
 
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-border bg-background px-4 sm:gap-6 md:px-6">
-      <Link href="/client" className="flex shrink-0 items-center gap-2">
-        <div className="flex size-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-          C
-        </div>
-        <span className="hidden text-sm font-semibold sm:inline">ClientFlow</span>
+      <Link href="/client" aria-label="Greens Media home" className="flex shrink-0 items-center">
+        <BrandLogo className="h-10" />
       </Link>
 
       <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
