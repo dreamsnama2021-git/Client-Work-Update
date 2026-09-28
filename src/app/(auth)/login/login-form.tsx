@@ -27,7 +27,7 @@ export function LoginForm() {
 
       {justConfirmed && (
         <p className="rounded-md bg-success/10 px-3 py-2 text-sm text-success">
-          Account created. Check your email to confirm, then sign in.
+          Account created. Check your email (including the spam folder) for the confirmation link, then sign in.
         </p>
       )}
 
