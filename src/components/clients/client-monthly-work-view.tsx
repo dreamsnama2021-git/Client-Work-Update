@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   approveExtraWorkAsClient,
   approveSlotAsClient,
+  approveSlotItemAsClient,
   rejectSlotAsClient,
+  rejectSlotItemAsClient,
   type WorkStatusActionState,
 } from "@/lib/actions/clients";
 import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
@@ -17,7 +19,8 @@ import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
 import type {
   ClientExtraWork,
   ClientService,
-  ClientWorkSlot,
+  ClientWorkSlotItem,
+  ClientWorkSlotWithItems,
   SlotContentType,
 } from "@/types/client";
 
@@ -34,7 +37,72 @@ function formatStamp(iso: string | null) {
   return iso ? STAMP_LABEL.format(new Date(iso)) : null;
 }
 
-function SlotReadout({ slot }: { slot: ClientWorkSlot }) {
+/** A rejected item no longer counts as complete — it moves to incomplete
+ * until the admin swaps in a new link for that item number. */
+function getEffectiveCompleted(slot: ClientWorkSlotWithItems) {
+  const rejected = slot.items.filter((i) => i.client_rejected_at !== null).length;
+  return { rejected, effective: Math.max(slot.completed_count - rejected, 0) };
+}
+
+function SlotItemReadout({ item }: { item: ClientWorkSlotItem }) {
+  const approveAction = approveSlotItemAsClient.bind(null, item.id);
+  const [approveState, approveFormAction, approvePending] = useActionState(
+    approveAction,
+    initialState,
+  );
+  const rejectAction = rejectSlotItemAsClient.bind(null, item.id);
+  const [rejectState, rejectFormAction, rejectPending] = useActionState(
+    rejectAction,
+    initialState,
+  );
+  const approvedStamp = formatStamp(item.client_approved_at);
+  const rejectedStamp = formatStamp(item.client_rejected_at);
+  const isPending = approvePending || rejectPending;
+
+  return (
+    <div className="space-y-1 rounded border border-border/60 p-2">
+      <div className="flex items-center justify-between gap-2">
+        <a
+          href={item.content_link ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="truncate font-medium text-primary hover:underline"
+        >
+          Item {item.item_number}
+        </a>
+        {approvedStamp ? (
+          <span className="shrink-0 text-muted-foreground">Approved · {approvedStamp}</span>
+        ) : rejectedStamp ? (
+          <span className="shrink-0 text-destructive">Rejected · {rejectedStamp}</span>
+        ) : (
+          <div className="flex shrink-0 gap-1.5">
+            <form action={approveFormAction}>
+              <Button type="submit" size="sm" disabled={isPending} className="h-6 px-2 text-[11px]">
+                {approvePending ? "…" : "Approve"}
+              </Button>
+            </form>
+            <form action={rejectFormAction}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                className="h-6 px-2 text-[11px] text-destructive hover:text-destructive"
+              >
+                {rejectPending ? "…" : "Reject"}
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
+      {(approveState.error || rejectState.error) && (
+        <p className="text-destructive">{approveState.error || rejectState.error}</p>
+      )}
+    </div>
+  );
+}
+
+function SlotReadout({ slot }: { slot: ClientWorkSlotWithItems }) {
   const approveAction = approveSlotAsClient.bind(null, slot.id);
   const [approveState, approveFormAction, approvePending] = useActionState(
     approveAction,
@@ -48,8 +116,8 @@ function SlotReadout({ slot }: { slot: ClientWorkSlot }) {
   const teamStamp = formatStamp(slot.sent_to_client_at);
   const approvedStamp = formatStamp(slot.client_approved_at);
   const rejectedStamp = formatStamp(slot.client_rejected_at);
-  const hasLink = Boolean(slot.content_link);
   const isPending = approvePending || rejectPending;
+  const linkedItems = slot.items.filter((i) => i.content_link);
 
   return (
     <div className="space-y-2 rounded-md border border-border p-2.5 text-xs">
@@ -67,49 +135,53 @@ function SlotReadout({ slot }: { slot: ClientWorkSlot }) {
           Team{teamStamp ? ` · ${teamStamp}` : " — not sent yet"}
         </span>
       </div>
-      {hasLink && (
-        <a
-          href={slot.content_link ?? undefined}
-          target="_blank"
-          rel="noreferrer"
-          className="block truncate font-medium text-primary hover:underline"
-        >
-          View content
-        </a>
+
+      {linkedItems.length > 0 ? (
+        <div className="space-y-1.5">
+          {linkedItems.map((item) => (
+            <SlotItemReadout key={item.id} item={item} />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {approvedStamp ? (
+            <span className="text-muted-foreground">Approved by you · {approvedStamp}</span>
+          ) : rejectedStamp ? (
+            <span className="text-destructive">Rejected by you · {rejectedStamp}</span>
+          ) : teamStamp ? (
+            <div className="flex gap-2">
+              <form action={approveFormAction}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isPending}
+                  className="h-7 px-2.5 text-xs"
+                >
+                  {approvePending ? "…" : "Approve"}
+                </Button>
+              </form>
+              <form action={rejectFormAction}>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  className="h-7 px-2.5 text-xs text-destructive hover:text-destructive"
+                >
+                  {rejectPending ? "…" : "Reject"}
+                </Button>
+              </form>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">
+              Waiting for the team to share this before you can review.
+            </span>
+          )}
+          {(approveState.error || rejectState.error) && (
+            <p className="text-destructive">{approveState.error || rejectState.error}</p>
+          )}
+        </div>
       )}
-      <div className="space-y-1">
-        {approvedStamp ? (
-          <span className="text-muted-foreground">Approved by you · {approvedStamp}</span>
-        ) : rejectedStamp ? (
-          <span className="text-destructive">Rejected by you · {rejectedStamp}</span>
-        ) : hasLink ? (
-          <div className="flex gap-2">
-            <form action={approveFormAction}>
-              <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
-                {approvePending ? "…" : "Approve"}
-              </Button>
-            </form>
-            <form action={rejectFormAction}>
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                disabled={isPending}
-                className="h-7 px-2.5 text-xs text-destructive hover:text-destructive"
-              >
-                {rejectPending ? "…" : "Reject"}
-              </Button>
-            </form>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">
-            Waiting for the team to share this before you can review.
-          </span>
-        )}
-        {(approveState.error || rejectState.error) && (
-          <p className="text-destructive">{approveState.error || rejectState.error}</p>
-        )}
-      </div>
     </div>
   );
 }
@@ -121,17 +193,28 @@ function ContentReadout({
 }: {
   contentType: SlotContentType;
   target: number | null;
-  slots: ClientWorkSlot[];
+  slots: ClientWorkSlotWithItems[];
 }) {
-  const completed = slots.reduce((sum, s) => sum + s.completed_count, 0);
+  const totals = slots.reduce(
+    (acc, s) => {
+      const { rejected, effective } = getEffectiveCompleted(s);
+      acc.completed += effective;
+      acc.incomplete += rejected;
+      return acc;
+    },
+    { completed: 0, incomplete: 0 },
+  );
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]}</p>
         <p className="text-xs text-muted-foreground">
-          {completed}
+          {totals.completed}
           {target !== null ? `/${target}` : ""} complete
+          {totals.incomplete > 0 && (
+            <span className="text-destructive"> · {totals.incomplete} incomplete</span>
+          )}
         </p>
       </div>
       {slots.length === 0 ? (
@@ -186,7 +269,7 @@ interface ClientMonthlyWorkViewProps {
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
-  slots: ClientWorkSlot[];
+  slots: ClientWorkSlotWithItems[];
   extraWork: ClientExtraWork[];
   website: ClientService | null;
 }
@@ -212,7 +295,15 @@ export function ClientMonthlyWorkView({
     staticTarget !== null || reelTarget !== null
       ? (staticTarget ?? 0) + (reelTarget ?? 0)
       : null;
-  const totalCompleted = slots.reduce((sum, s) => sum + s.completed_count, 0);
+  const totals = slots.reduce(
+    (acc, s) => {
+      const { rejected, effective } = getEffectiveCompleted(s);
+      acc.completed += effective;
+      acc.incomplete += rejected;
+      return acc;
+    },
+    { completed: 0, incomplete: 0 },
+  );
 
   return (
     <Card>
@@ -243,7 +334,10 @@ export function ClientMonthlyWorkView({
               <p className="text-sm font-medium">Social Media</p>
               {totalTarget !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Total Post: {totalCompleted}/{totalTarget}
+                  Total Post: {totals.completed}/{totalTarget}
+                  {totals.incomplete > 0 && (
+                    <span className="text-destructive"> · {totals.incomplete} incomplete</span>
+                  )}
                 </p>
               )}
             </div>

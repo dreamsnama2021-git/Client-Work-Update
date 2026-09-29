@@ -24,7 +24,7 @@ import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
 import type {
   ClientExtraWork,
   ClientService,
-  ClientWorkSlot,
+  ClientWorkSlotWithItems,
   SlotContentType,
   WebsiteStatus,
 } from "@/types/client";
@@ -49,6 +49,13 @@ function toDatetimeLocal(iso: string | null) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** A rejected item no longer counts as complete — it moves to incomplete
+ * until the admin swaps in a new link for that item number. */
+function getEffectiveCompleted(slot: ClientWorkSlotWithItems) {
+  const rejected = slot.items.filter((i) => i.client_rejected_at !== null).length;
+  return { rejected, effective: Math.max(slot.completed_count - rejected, 0) };
 }
 
 function ApprovalTick({
@@ -83,7 +90,7 @@ function SlotRow({
   clientId,
   target,
 }: {
-  slot: ClientWorkSlot;
+  slot: ClientWorkSlotWithItems;
   clientId: string;
   target: number | null;
 }) {
@@ -91,6 +98,8 @@ function SlotRow({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const deleteAction = deleteWorkSlot.bind(null, slot.id, clientId);
   const [count, setCount] = useState(slot.completed_count);
+  const itemsByNumber = new Map(slot.items.map((i) => [i.item_number, i]));
+  const rejectedCount = slot.items.filter((i) => i.client_rejected_at !== null).length;
 
   return (
     <form action={formAction} className="space-y-2.5 rounded-md border border-border p-3">
@@ -142,18 +151,36 @@ function SlotRow({
         />
       </div>
 
-      <div className={count > 0 ? "space-y-1" : "hidden"}>
-        <Label className="text-[11px] font-normal text-muted-foreground">
-          Link (static post / reel to review)
-        </Label>
-        <Input
-          name="content_link"
-          type="url"
-          defaultValue={slot.content_link ?? ""}
-          placeholder="https://…"
-          className="h-7 text-xs"
-        />
-      </div>
+      {count > 0 && (
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-normal text-muted-foreground">
+            Links ({count} {count === 1 ? "item" : "items"} to review)
+          </Label>
+          <div className="space-y-1.5">
+            {Array.from({ length: count }, (_, i) => i + 1).map((n) => {
+              const item = itemsByNumber.get(n);
+              return (
+                <div key={n} className="flex items-center gap-1.5">
+                  <span className="w-4 shrink-0 text-[11px] text-muted-foreground">{n}.</span>
+                  <Input
+                    name={`item_link_${n}`}
+                    type="url"
+                    defaultValue={item?.content_link ?? ""}
+                    placeholder="https://…"
+                    className="h-7 flex-1 text-xs"
+                  />
+                  {item?.client_approved_at && (
+                    <span className="shrink-0 text-[11px] text-success">Approved</span>
+                  )}
+                  {item?.client_rejected_at && (
+                    <span className="shrink-0 text-[11px] text-destructive">Rejected</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-4">
         <span className="text-[11px] text-muted-foreground">Approval</span>
@@ -172,6 +199,11 @@ function SlotRow({
             Rejected · {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
           </span>
         )}
+        {rejectedCount > 0 && (
+          <span className="text-[11px] text-destructive">
+            {rejectedCount} item{rejectedCount === 1 ? "" : "s"} rejected
+          </span>
+        )}
       </div>
     </form>
   );
@@ -188,9 +220,17 @@ function ContentSection({
   month: string;
   contentType: SlotContentType;
   target: number | null;
-  slots: ClientWorkSlot[];
+  slots: ClientWorkSlotWithItems[];
 }) {
-  const totalCompleted = slots.reduce((sum, s) => sum + s.completed_count, 0);
+  const totals = slots.reduce(
+    (acc, s) => {
+      const { rejected, effective } = getEffectiveCompleted(s);
+      acc.completed += effective;
+      acc.incomplete += rejected;
+      return acc;
+    },
+    { completed: 0, incomplete: 0 },
+  );
   const addAction = addWorkSlot.bind(null, clientId, month, contentType);
 
   return (
@@ -205,8 +245,14 @@ function ContentSection({
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          {totalCompleted}
+          {totals.completed}
           {target !== null ? `/${target}` : ""} complete
+          {totals.incomplete > 0 && (
+            <span className="text-destructive">
+              {" "}
+              · {totals.incomplete} incomplete
+            </span>
+          )}
         </p>
       </div>
 
@@ -335,7 +381,7 @@ interface ClientWorkStatusCardProps {
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
-  slots: ClientWorkSlot[];
+  slots: ClientWorkSlotWithItems[];
   extraWork: ClientExtraWork[];
   website: ClientService | null;
 }
@@ -363,7 +409,15 @@ export function ClientWorkStatusCard({
   const { prev, next } = adjacentMonths(month);
   const staticSlots = slots.filter((s) => s.content_type === "static");
   const reelSlots = slots.filter((s) => s.content_type === "reel");
-  const totalCompleted = slots.reduce((sum, s) => sum + s.completed_count, 0);
+  const totals = slots.reduce(
+    (acc, s) => {
+      const { rejected, effective } = getEffectiveCompleted(s);
+      acc.completed += effective;
+      acc.incomplete += rejected;
+      return acc;
+    },
+    { completed: 0, incomplete: 0 },
+  );
   const totalTarget =
     staticTarget !== null || reelTarget !== null
       ? (staticTarget ?? 0) + (reelTarget ?? 0)
@@ -396,7 +450,13 @@ export function ClientWorkStatusCard({
               <p className="text-sm font-medium">Social Media</p>
               {totalTarget !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Total Post: {totalCompleted}/{totalTarget}
+                  Total Post: {totals.completed}/{totalTarget}
+                  {totals.incomplete > 0 && (
+                    <span className="text-destructive">
+                      {" "}
+                      · {totals.incomplete} incomplete
+                    </span>
+                  )}
                 </p>
               )}
             </div>

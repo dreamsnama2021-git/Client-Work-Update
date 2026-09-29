@@ -307,6 +307,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_work_slot_items: {
+        Row: {
+          id: string;
+          slot_id: string;
+          item_number: number;
+          content_link: string | null;
+          client_approved_at: string | null;
+          client_rejected_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slot_id: string;
+          item_number: number;
+          content_link?: string | null;
+          client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+        };
+        Update: {
+          content_link?: string | null;
+          client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+        };
+        Relationships: [];
+      };
       client_service_items: {
         Row: {
           id: string;

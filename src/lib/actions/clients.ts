@@ -432,13 +432,23 @@ export async function updateWorkSlot(
 ): Promise<WorkStatusActionState> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: existing, error: fetchError } = await supabase
-    .from("client_work_slots")
-    .select("ready_at, sent_to_client_at, client_approved_at, client_rejected_at, content_link")
-    .eq("id", slotId)
-    .single();
+  const [
+    { data: existing, error: fetchError },
+    { data: existingItems, error: itemsError },
+  ] = await Promise.all([
+    supabase
+      .from("client_work_slots")
+      .select("ready_at, sent_to_client_at, client_approved_at")
+      .eq("id", slotId)
+      .single(),
+    supabase
+      .from("client_work_slot_items")
+      .select("id, item_number, content_link")
+      .eq("slot_id", slotId),
+  ]);
 
   if (fetchError) return { error: fetchError.message };
+  if (itemsError) return { error: itemsError.message };
 
   const completedCount =
     toIntOrNull(String(formData.get("completed_count") ?? "0")) ?? 0;
@@ -450,30 +460,62 @@ export async function updateWorkSlot(
   // counts as sending it to the client even if the box wasn't ticked by hand.
   const teamTicked = formData.get("team_ticked") === "on" || readyAt !== null;
   const clientTicked = formData.get("client_ticked") === "on";
-  const contentLink = String(formData.get("content_link") ?? "").trim() || null;
-  // A new/changed link is a new deliverable — clear any prior client
-  // response so they review it fresh instead of inheriting a stale tick.
-  const linkChanged = contentLink !== existing.content_link;
 
   const { error } = await supabase
     .from("client_work_slots")
     .update({
       completed_count: completedCount,
       ready_at: readyAt,
-      content_link: contentLink,
       sent_to_client_at: teamTicked
         ? existing.sent_to_client_at ?? new Date().toISOString()
         : null,
-      client_approved_at: linkChanged
-        ? null
-        : clientTicked
-          ? existing.client_approved_at ?? new Date().toISOString()
-          : null,
-      client_rejected_at: linkChanged ? null : existing.client_rejected_at,
+      client_approved_at: clientTicked
+        ? existing.client_approved_at ?? new Date().toISOString()
+        : null,
     })
     .eq("id", slotId);
 
   if (error) return { error: error.message };
+
+  // One item per completed unit: numbers beyond the new count are removed,
+  // and each remaining number's link is created/updated/cleared — changing
+  // or clearing a link resets that item's approval so the client reviews it
+  // fresh instead of inheriting a stale tick.
+  const existingByNumber = new Map((existingItems ?? []).map((i) => [i.item_number, i]));
+
+  const toDelete = (existingItems ?? [])
+    .filter((i) => i.item_number > completedCount)
+    .map((i) => i.id);
+  if (toDelete.length > 0) {
+    await supabase.from("client_work_slot_items").delete().in("id", toDelete);
+  }
+
+  for (let n = 1; n <= completedCount; n++) {
+    const submittedLink = String(formData.get(`item_link_${n}`) ?? "").trim() || null;
+    const existingItem = existingByNumber.get(n);
+
+    if (!existingItem) {
+      if (submittedLink) {
+        await supabase.from("client_work_slot_items").insert({
+          slot_id: slotId,
+          item_number: n,
+          content_link: submittedLink,
+        });
+      }
+      continue;
+    }
+
+    if (submittedLink !== existingItem.content_link) {
+      await supabase
+        .from("client_work_slot_items")
+        .update({
+          content_link: submittedLink,
+          client_approved_at: null,
+          client_rejected_at: null,
+        })
+        .eq("id", existingItem.id);
+    }
+  }
 
   revalidatePath(`/admin/clients/${clientId}`);
   return { error: null };
@@ -482,7 +524,9 @@ export async function updateWorkSlot(
 /** Lets the linked client tick their own approval on a slot from their
  * portal — stamps the current time, and only ever touches this one column
  * (enforced by the prevent_slot_tampering trigger for non-admins). Refuses
- * until the team has shared a link to review. */
+ * until the team has marked the slot as sent. Only used as a fallback for
+ * slots with no per-item links (every slot created before item-level review
+ * existed). */
 export async function approveSlotAsClient(
   slotId: string,
   _prevState: WorkStatusActionState,
@@ -491,14 +535,14 @@ export async function approveSlotAsClient(
 
   const { data: slot, error: fetchError } = await supabase
     .from("client_work_slots")
-    .select("sent_to_client_at, content_link")
+    .select("sent_to_client_at")
     .eq("id", slotId)
     .single();
 
   if (fetchError) return { error: fetchError.message };
 
-  if (!slot.sent_to_client_at || !slot.content_link) {
-    return { error: "The team hasn't shared a link to review yet." };
+  if (!slot.sent_to_client_at) {
+    return { error: "The team hasn't shared this yet." };
   }
 
   const { error } = await supabase
@@ -512,8 +556,8 @@ export async function approveSlotAsClient(
   return { error: null };
 }
 
-/** The rejecting counterpart to approveSlotAsClient — same gating, just
- * stamps client_rejected_at instead. */
+/** The rejecting counterpart to approveSlotAsClient — same gating and same
+ * whole-slot fallback role, just stamps client_rejected_at instead. */
 export async function rejectSlotAsClient(
   slotId: string,
   _prevState: WorkStatusActionState,
@@ -522,20 +566,83 @@ export async function rejectSlotAsClient(
 
   const { data: slot, error: fetchError } = await supabase
     .from("client_work_slots")
-    .select("sent_to_client_at, content_link")
+    .select("sent_to_client_at")
     .eq("id", slotId)
     .single();
 
   if (fetchError) return { error: fetchError.message };
 
-  if (!slot.sent_to_client_at || !slot.content_link) {
-    return { error: "The team hasn't shared a link to review yet." };
+  if (!slot.sent_to_client_at) {
+    return { error: "The team hasn't shared this yet." };
   }
 
   const { error } = await supabase
     .from("client_work_slots")
     .update({ client_rejected_at: new Date().toISOString() })
     .eq("id", slotId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
+/** Lets the client approve one individual item (a single post/reel) within
+ * a slot, rather than the slot as a whole. Requires a link to review. */
+export async function approveSlotItemAsClient(
+  itemId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: item, error: fetchError } = await supabase
+    .from("client_work_slot_items")
+    .select("content_link")
+    .eq("id", itemId)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  if (!item.content_link) {
+    return { error: "There's no link to review yet." };
+  }
+
+  const { error } = await supabase
+    .from("client_work_slot_items")
+    .update({ client_approved_at: new Date().toISOString(), client_rejected_at: null })
+    .eq("id", itemId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
+/** The rejecting counterpart to approveSlotItemAsClient. A rejected item no
+ * longer counts toward the slot's completed total on either dashboard —
+ * see the effectiveCompleted/incomplete math in the two work-status views. */
+export async function rejectSlotItemAsClient(
+  itemId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: item, error: fetchError } = await supabase
+    .from("client_work_slot_items")
+    .select("content_link")
+    .eq("id", itemId)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  if (!item.content_link) {
+    return { error: "There's no link to review yet." };
+  }
+
+  const { error } = await supabase
+    .from("client_work_slot_items")
+    .update({ client_rejected_at: new Date().toISOString(), client_approved_at: null })
+    .eq("id", itemId);
 
   if (error) return { error: error.message };
 

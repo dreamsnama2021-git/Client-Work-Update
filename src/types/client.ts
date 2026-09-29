@@ -11,6 +11,11 @@ export type Client = Database["public"]["Tables"]["clients"]["Row"];
 export type ClientService = Database["public"]["Tables"]["client_services"]["Row"];
 export type ClientWorkSlot =
   Database["public"]["Tables"]["client_work_slots"]["Row"];
+export type ClientWorkSlotItem =
+  Database["public"]["Tables"]["client_work_slot_items"]["Row"];
+export interface ClientWorkSlotWithItems extends ClientWorkSlot {
+  items: ClientWorkSlotItem[];
+}
 export type ClientExtraWork =
   Database["public"]["Tables"]["client_extra_work"]["Row"];
 export type ClientServiceItem =
