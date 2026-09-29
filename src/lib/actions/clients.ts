@@ -434,7 +434,7 @@ export async function updateWorkSlot(
 
   const { data: existing, error: fetchError } = await supabase
     .from("client_work_slots")
-    .select("ready_at, sent_to_client_at, client_approved_at")
+    .select("ready_at, sent_to_client_at, client_approved_at, client_rejected_at, content_link")
     .eq("id", slotId)
     .single();
 
@@ -450,18 +450,26 @@ export async function updateWorkSlot(
   // counts as sending it to the client even if the box wasn't ticked by hand.
   const teamTicked = formData.get("team_ticked") === "on" || readyAt !== null;
   const clientTicked = formData.get("client_ticked") === "on";
+  const contentLink = String(formData.get("content_link") ?? "").trim() || null;
+  // A new/changed link is a new deliverable — clear any prior client
+  // response so they review it fresh instead of inheriting a stale tick.
+  const linkChanged = contentLink !== existing.content_link;
 
   const { error } = await supabase
     .from("client_work_slots")
     .update({
       completed_count: completedCount,
       ready_at: readyAt,
+      content_link: contentLink,
       sent_to_client_at: teamTicked
         ? existing.sent_to_client_at ?? new Date().toISOString()
         : null,
-      client_approved_at: clientTicked
-        ? existing.client_approved_at ?? new Date().toISOString()
-        : null,
+      client_approved_at: linkChanged
+        ? null
+        : clientTicked
+          ? existing.client_approved_at ?? new Date().toISOString()
+          : null,
+      client_rejected_at: linkChanged ? null : existing.client_rejected_at,
     })
     .eq("id", slotId);
 
@@ -474,8 +482,7 @@ export async function updateWorkSlot(
 /** Lets the linked client tick their own approval on a slot from their
  * portal — stamps the current time, and only ever touches this one column
  * (enforced by the prevent_slot_tampering trigger for non-admins). Refuses
- * until the team has marked the slot as sent — a client can't approve
- * something that hasn't been shared with them yet. */
+ * until the team has shared a link to review. */
 export async function approveSlotAsClient(
   slotId: string,
   _prevState: WorkStatusActionState,
@@ -484,19 +491,50 @@ export async function approveSlotAsClient(
 
   const { data: slot, error: fetchError } = await supabase
     .from("client_work_slots")
-    .select("sent_to_client_at")
+    .select("sent_to_client_at, content_link")
     .eq("id", slotId)
     .single();
 
   if (fetchError) return { error: fetchError.message };
 
-  if (!slot.sent_to_client_at) {
-    return { error: "The team hasn't shared this yet." };
+  if (!slot.sent_to_client_at || !slot.content_link) {
+    return { error: "The team hasn't shared a link to review yet." };
   }
 
   const { error } = await supabase
     .from("client_work_slots")
     .update({ client_approved_at: new Date().toISOString() })
+    .eq("id", slotId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
+/** The rejecting counterpart to approveSlotAsClient — same gating, just
+ * stamps client_rejected_at instead. */
+export async function rejectSlotAsClient(
+  slotId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: slot, error: fetchError } = await supabase
+    .from("client_work_slots")
+    .select("sent_to_client_at, content_link")
+    .eq("id", slotId)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  if (!slot.sent_to_client_at || !slot.content_link) {
+    return { error: "The team hasn't shared a link to review yet." };
+  }
+
+  const { error } = await supabase
+    .from("client_work_slots")
+    .update({ client_rejected_at: new Date().toISOString() })
     .eq("id", slotId);
 
   if (error) return { error: error.message };

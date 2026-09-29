@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
@@ -90,6 +90,7 @@ function SlotRow({
   const action = updateWorkSlot.bind(null, slot.id, clientId);
   const [state, formAction, isPending] = useActionState(action, initialState);
   const deleteAction = deleteWorkSlot.bind(null, slot.id, clientId);
+  const [count, setCount] = useState(slot.completed_count);
 
   return (
     <form action={formAction} className="space-y-2.5 rounded-md border border-border p-3">
@@ -102,7 +103,8 @@ function SlotRow({
             name="completed_count"
             type="number"
             min={0}
-            defaultValue={slot.completed_count}
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value) || 0)}
             className="h-7 w-16 text-xs"
           />
           {target !== null && (
@@ -140,7 +142,20 @@ function SlotRow({
         />
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className={count > 0 ? "space-y-1" : "hidden"}>
+        <Label className="text-[11px] font-normal text-muted-foreground">
+          Link (static post / reel to review)
+        </Label>
+        <Input
+          name="content_link"
+          type="url"
+          defaultValue={slot.content_link ?? ""}
+          placeholder="https://…"
+          className="h-7 text-xs"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
         <span className="text-[11px] text-muted-foreground">Approval</span>
         <ApprovalTick
           name="team_ticked"
@@ -152,6 +167,11 @@ function SlotRow({
           label="Client"
           stampedAt={slot.client_approved_at}
         />
+        {slot.client_rejected_at && (
+          <span className="text-[11px] text-destructive">
+            Rejected · {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
+          </span>
+        )}
       </div>
     </form>
   );

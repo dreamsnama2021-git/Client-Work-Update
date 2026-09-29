@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   approveExtraWorkAsClient,
   approveSlotAsClient,
+  rejectSlotAsClient,
   type WorkStatusActionState,
 } from "@/lib/actions/clients";
 import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
@@ -35,10 +36,20 @@ function formatStamp(iso: string | null) {
 
 function SlotReadout({ slot }: { slot: ClientWorkSlot }) {
   const approveAction = approveSlotAsClient.bind(null, slot.id);
-  const [state, formAction, isPending] = useActionState(approveAction, initialState);
+  const [approveState, approveFormAction, approvePending] = useActionState(
+    approveAction,
+    initialState,
+  );
+  const rejectAction = rejectSlotAsClient.bind(null, slot.id);
+  const [rejectState, rejectFormAction, rejectPending] = useActionState(
+    rejectAction,
+    initialState,
+  );
   const teamStamp = formatStamp(slot.sent_to_client_at);
-  const clientStamp = formatStamp(slot.client_approved_at);
-  const sentByTeam = slot.sent_to_client_at !== null;
+  const approvedStamp = formatStamp(slot.client_approved_at);
+  const rejectedStamp = formatStamp(slot.client_rejected_at);
+  const hasLink = Boolean(slot.content_link);
+  const isPending = approvePending || rejectPending;
 
   return (
     <div className="space-y-2 rounded-md border border-border p-2.5 text-xs">
@@ -56,21 +67,48 @@ function SlotReadout({ slot }: { slot: ClientWorkSlot }) {
           Team{teamStamp ? ` · ${teamStamp}` : " — not sent yet"}
         </span>
       </div>
+      {hasLink && (
+        <a
+          href={slot.content_link ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate font-medium text-primary hover:underline"
+        >
+          View content
+        </a>
+      )}
       <div className="space-y-1">
-        {clientStamp ? (
-          <span className="text-muted-foreground">Approved by you · {clientStamp}</span>
-        ) : sentByTeam ? (
-          <form action={formAction}>
-            <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
-              {isPending ? "…" : "Approve"}
-            </Button>
-          </form>
+        {approvedStamp ? (
+          <span className="text-muted-foreground">Approved by you · {approvedStamp}</span>
+        ) : rejectedStamp ? (
+          <span className="text-destructive">Rejected by you · {rejectedStamp}</span>
+        ) : hasLink ? (
+          <div className="flex gap-2">
+            <form action={approveFormAction}>
+              <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
+                {approvePending ? "…" : "Approve"}
+              </Button>
+            </form>
+            <form action={rejectFormAction}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                className="h-7 px-2.5 text-xs text-destructive hover:text-destructive"
+              >
+                {rejectPending ? "…" : "Reject"}
+              </Button>
+            </form>
+          </div>
         ) : (
           <span className="text-muted-foreground">
-            Waiting for the team to share this before you can approve.
+            Waiting for the team to share this before you can review.
           </span>
         )}
-        {state.error && <p className="text-destructive">{state.error}</p>}
+        {(approveState.error || rejectState.error) && (
+          <p className="text-destructive">{approveState.error || rejectState.error}</p>
+        )}
       </div>
     </div>
   );

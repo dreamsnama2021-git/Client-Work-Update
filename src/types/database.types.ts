@@ -279,6 +279,8 @@ export interface Database {
           ready_at: string | null;
           sent_to_client_at: string | null;
           client_approved_at: string | null;
+          client_rejected_at: string | null;
+          content_link: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -292,12 +294,16 @@ export interface Database {
           ready_at?: string | null;
           sent_to_client_at?: string | null;
           client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+          content_link?: string | null;
         };
         Update: {
           completed_count?: number;
           ready_at?: string | null;
           sent_to_client_at?: string | null;
           client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+          content_link?: string | null;
         };
         Relationships: [];
       };
