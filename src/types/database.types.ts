@@ -376,6 +376,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_references: {
+        Row: {
+          id: string;
+          client_id: string;
+          month: string;
+          content_link: string | null;
+          client_approved_at: string | null;
+          client_rejected_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          month: string;
+          content_link?: string | null;
+          client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+        };
+        Update: {
+          content_link?: string | null;
+          client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

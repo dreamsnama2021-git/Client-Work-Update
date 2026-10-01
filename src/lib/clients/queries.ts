@@ -4,6 +4,7 @@ import type {
   Client,
   ClientExtraWork,
   ClientFilters,
+  ClientReference,
   ClientService,
   ClientServiceItem,
   ClientWorkSlotWithItems,
@@ -259,6 +260,34 @@ export async function listClientExtraWork(
   }
 
   return { items: data ?? [], error: null };
+}
+
+export interface ListClientReferencesResult {
+  references: ClientReference[];
+  error: string | null;
+}
+
+/** A client's reference links for one calendar month, oldest first — a
+ * free-form list with no target count, unlike the Static/Reel slots.
+ * `month` must be a first-of-month ISO date, e.g. "2026-09-01". */
+export async function listClientReferences(
+  clientId: string,
+  month: string,
+): Promise<ListClientReferencesResult> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("client_references")
+    .select("*")
+    .eq("client_id", clientId)
+    .eq("month", month)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return { references: [], error: error.message };
+  }
+
+  return { references: data ?? [], error: null };
 }
 
 export interface ClientMonthlyWorkSummary {

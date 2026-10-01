@@ -18,6 +18,8 @@ export interface ClientWorkSlotWithItems extends ClientWorkSlot {
 }
 export type ClientExtraWork =
   Database["public"]["Tables"]["client_extra_work"]["Row"];
+export type ClientReference =
+  Database["public"]["Tables"]["client_references"]["Row"];
 export type ClientServiceItem =
   Database["public"]["Tables"]["client_service_items"]["Row"];
 

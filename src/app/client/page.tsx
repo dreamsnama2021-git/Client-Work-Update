@@ -15,6 +15,7 @@ import { ClientServicesCard } from "@/components/clients/client-services-card";
 import {
   getMyClientRecord,
   listClientExtraWork,
+  listClientReferences,
   listClientServiceItems,
   listClientServices,
   listClientWorkSlots,
@@ -52,12 +53,14 @@ export default async function ClientDashboardPage({
     { items: serviceItems },
     { slots },
     { items: extraWork },
+    { references },
   ] = await Promise.all([
     listApprovals({ status: "pending" }),
     listClientServices(client.id),
     listClientServiceItems(client.id),
     listClientWorkSlots(client.id, month),
     listClientExtraWork(client.id, month),
+    listClientReferences(client.id, month),
   ]);
 
   const socialMediaService = services.find((s) => s.service_type === "social_media") ?? null;
@@ -84,6 +87,7 @@ export default async function ClientDashboardPage({
         reelTarget={socialMediaService?.reel_target ?? null}
         slots={slots}
         extraWork={extraWork}
+        references={references}
         website={websiteService}
       />
 

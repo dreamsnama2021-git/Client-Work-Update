@@ -780,3 +780,126 @@ export async function approveExtraWorkAsClient(
   revalidatePath("/client");
   return { error: null };
 }
+
+/** Appends a new (blank) reference link for a client in a given month — no
+ * target count, the admin just adds as many as needed. */
+export async function addReference(clientId: string, month: string) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("client_references").insert({
+    client_id: clientId,
+    month,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+/** Updates one reference's link. Changing or clearing the link resets any
+ * client response so they review it fresh, same as a slot item's link. */
+export async function updateReference(
+  referenceId: string,
+  clientId: string,
+  _prevState: WorkStatusActionState,
+  formData: FormData,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("client_references")
+    .select("content_link")
+    .eq("id", referenceId)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  const contentLink = String(formData.get("content_link") ?? "").trim() || null;
+  const linkChanged = contentLink !== existing.content_link;
+
+  const { error } = await supabase
+    .from("client_references")
+    .update({
+      content_link: contentLink,
+      client_approved_at: linkChanged ? null : undefined,
+      client_rejected_at: linkChanged ? null : undefined,
+    })
+    .eq("id", referenceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/clients/${clientId}`);
+  return { error: null };
+}
+
+export async function deleteReference(referenceId: string, clientId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("client_references")
+    .delete()
+    .eq("id", referenceId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+/** Lets the client approve one reference link. Requires a link to review —
+ * same gating as approveSlotItemAsClient. */
+export async function approveReferenceAsClient(
+  referenceId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: reference, error: fetchError } = await supabase
+    .from("client_references")
+    .select("content_link")
+    .eq("id", referenceId)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  if (!reference.content_link) {
+    return { error: "There's no link to review yet." };
+  }
+
+  const { error } = await supabase
+    .from("client_references")
+    .update({ client_approved_at: new Date().toISOString(), client_rejected_at: null })
+    .eq("id", referenceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
+/** The rejecting counterpart to approveReferenceAsClient. */
+export async function rejectReferenceAsClient(
+  referenceId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: reference, error: fetchError } = await supabase
+    .from("client_references")
+    .select("content_link")
+    .eq("id", referenceId)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  if (!reference.content_link) {
+    return { error: "There's no link to review yet." };
+  }
+
+  const { error } = await supabase
+    .from("client_references")
+    .update({ client_rejected_at: new Date().toISOString(), client_approved_at: null })
+    .eq("id", referenceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}

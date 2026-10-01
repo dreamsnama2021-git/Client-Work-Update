@@ -23,6 +23,7 @@ import {
   getClientById,
   getPortalAccountEmail,
   listClientExtraWork,
+  listClientReferences,
   listClientServiceItems,
   listClientServices,
   listClientWorkSlots,
@@ -81,6 +82,7 @@ export default async function ClientDetailPage({
     { items: serviceItems },
     { slots },
     { items: extraWork },
+    { references },
   ] = await Promise.all([
     listTasks({ clientId: client.id }),
     listApprovals({ clientId: client.id }),
@@ -89,6 +91,7 @@ export default async function ClientDetailPage({
     listClientServiceItems(client.id),
     listClientWorkSlots(client.id, month),
     listClientExtraWork(client.id, month),
+    listClientReferences(client.id, month),
   ]);
 
   const socialMediaService = services.find((s) => s.service_type === "social_media") ?? null;
@@ -201,6 +204,7 @@ export default async function ClientDetailPage({
         reelTarget={socialMediaService?.reel_target ?? null}
         slots={slots}
         extraWork={extraWork}
+        references={references}
         website={websiteService}
       />
 

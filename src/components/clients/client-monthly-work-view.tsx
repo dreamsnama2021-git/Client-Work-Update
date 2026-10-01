@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   approveExtraWorkAsClient,
+  approveReferenceAsClient,
   approveSlotAsClient,
   approveSlotItemAsClient,
+  rejectReferenceAsClient,
   rejectSlotAsClient,
   rejectSlotItemAsClient,
   type WorkStatusActionState,
@@ -18,6 +20,7 @@ import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
 import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
 import type {
   ClientExtraWork,
+  ClientReference,
   ClientService,
   ClientWorkSlotItem,
   ClientWorkSlotWithItems,
@@ -230,6 +233,66 @@ function ContentReadout({
   );
 }
 
+function ReferenceReadout({ reference }: { reference: ClientReference }) {
+  const approveAction = approveReferenceAsClient.bind(null, reference.id);
+  const [approveState, approveFormAction, approvePending] = useActionState(
+    approveAction,
+    initialState,
+  );
+  const rejectAction = rejectReferenceAsClient.bind(null, reference.id);
+  const [rejectState, rejectFormAction, rejectPending] = useActionState(
+    rejectAction,
+    initialState,
+  );
+  const approvedStamp = formatStamp(reference.client_approved_at);
+  const rejectedStamp = formatStamp(reference.client_rejected_at);
+  const isPending = approvePending || rejectPending;
+
+  if (!reference.content_link) return null;
+
+  return (
+    <div className="space-y-1 rounded-md border border-border p-2.5 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <a
+          href={reference.content_link}
+          target="_blank"
+          rel="noreferrer"
+          className="truncate font-medium text-primary hover:underline"
+        >
+          View reference
+        </a>
+        {approvedStamp ? (
+          <span className="shrink-0 text-muted-foreground">Approved · {approvedStamp}</span>
+        ) : rejectedStamp ? (
+          <span className="shrink-0 text-destructive">Rejected · {rejectedStamp}</span>
+        ) : (
+          <div className="flex shrink-0 gap-1.5">
+            <form action={approveFormAction}>
+              <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
+                {approvePending ? "…" : "Approve"}
+              </Button>
+            </form>
+            <form action={rejectFormAction}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                className="h-7 px-2.5 text-xs text-destructive hover:text-destructive"
+              >
+                {rejectPending ? "…" : "Reject"}
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
+      {(approveState.error || rejectState.error) && (
+        <p className="text-destructive">{approveState.error || rejectState.error}</p>
+      )}
+    </div>
+  );
+}
+
 function ExtraWorkReadout({ item }: { item: ClientExtraWork }) {
   const approveAction = approveExtraWorkAsClient.bind(null, item.id);
   const [state, formAction, isPending] = useActionState(approveAction, initialState);
@@ -271,6 +334,7 @@ interface ClientMonthlyWorkViewProps {
   reelTarget: number | null;
   slots: ClientWorkSlotWithItems[];
   extraWork: ClientExtraWork[];
+  references: ClientReference[];
   website: ClientService | null;
 }
 
@@ -282,6 +346,7 @@ export function ClientMonthlyWorkView({
   reelTarget,
   slots,
   extraWork,
+  references,
   website,
 }: ClientMonthlyWorkViewProps) {
   if (!hasSocialMedia && !website) {
@@ -344,6 +409,17 @@ export function ClientMonthlyWorkView({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <ContentReadout contentType="static" target={staticTarget} slots={staticSlots} />
               <ContentReadout contentType="reel" target={reelTarget} slots={reelSlots} />
+            </div>
+          </div>
+        )}
+
+        {references.filter((r) => r.content_link).length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Reference</p>
+            <div className="space-y-2">
+              {references.map((reference) => (
+                <ReferenceReadout key={reference.id} reference={reference} />
+              ))}
             </div>
           </div>
         )}

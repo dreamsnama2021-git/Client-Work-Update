@@ -11,11 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addExtraWork,
+  addReference,
   addWorkSlot,
   deleteExtraWork,
+  deleteReference,
   deleteWorkSlot,
   updateClientWebsiteStatus,
   updateExtraWork,
+  updateReference,
   updateWorkSlot,
   type WorkStatusActionState,
 } from "@/lib/actions/clients";
@@ -23,6 +26,7 @@ import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
 import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
 import type {
   ClientExtraWork,
+  ClientReference,
   ClientService,
   ClientWorkSlotWithItems,
   SlotContentType,
@@ -274,6 +278,100 @@ function ContentSection({
   );
 }
 
+function ReferenceRow({
+  reference,
+  clientId,
+}: {
+  reference: ClientReference;
+  clientId: string;
+}) {
+  const action = updateReference.bind(null, reference.id, clientId);
+  const [state, formAction, isPending] = useActionState(action, initialState);
+  const deleteAction = deleteReference.bind(null, reference.id, clientId);
+
+  return (
+    <form action={formAction} className="space-y-1.5 rounded-md border border-border p-3">
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+      <div className="flex items-center gap-1.5">
+        <Input
+          name="content_link"
+          type="url"
+          defaultValue={reference.content_link ?? ""}
+          placeholder="https://…"
+          className="h-7 flex-1 text-xs"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          variant="outline"
+          disabled={isPending}
+          className="h-7 px-2 text-xs"
+        >
+          {isPending ? "…" : "Save"}
+        </Button>
+        <Button
+          type="submit"
+          formAction={deleteAction}
+          size="icon"
+          variant="ghost"
+          className="size-7 text-destructive hover:text-destructive"
+          aria-label="Delete reference"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+      {reference.client_approved_at && (
+        <p className="text-[11px] text-success">
+          Approved · {STAMP_LABEL.format(new Date(reference.client_approved_at))}
+        </p>
+      )}
+      {reference.client_rejected_at && (
+        <p className="text-[11px] text-destructive">
+          Rejected · {STAMP_LABEL.format(new Date(reference.client_rejected_at))}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function ReferenceSection({
+  clientId,
+  month,
+  references,
+}: {
+  clientId: string;
+  month: string;
+  references: ClientReference[];
+}) {
+  const addAction = addReference.bind(null, clientId, month);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">Reference</p>
+      <p className="text-xs text-muted-foreground">
+        Links shared for feedback — the client can approve or reject each one.
+      </p>
+
+      {references.length > 0 && (
+        <div className="space-y-2">
+          {references.map((reference) => (
+            <ReferenceRow key={reference.id} reference={reference} clientId={clientId} />
+          ))}
+        </div>
+      )}
+
+      <form action={addAction}>
+        <button
+          type="submit"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-xs font-medium text-primary transition-colors hover:bg-accent"
+        >
+          <Plus className="size-3.5" /> Add Reference
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ExtraWorkRow({
   item,
   clientId,
@@ -383,6 +481,7 @@ interface ClientWorkStatusCardProps {
   reelTarget: number | null;
   slots: ClientWorkSlotWithItems[];
   extraWork: ClientExtraWork[];
+  references: ClientReference[];
   website: ClientService | null;
 }
 
@@ -394,6 +493,7 @@ export function ClientWorkStatusCard({
   reelTarget,
   slots,
   extraWork,
+  references,
   website,
 }: ClientWorkStatusCardProps) {
   const websiteAction = updateClientWebsiteStatus.bind(null, clientId);
@@ -478,6 +578,8 @@ export function ClientWorkStatusCard({
             </div>
           </div>
         )}
+
+        <ReferenceSection clientId={clientId} month={month} references={references} />
 
         <ExtraWorkSection clientId={clientId} month={month} items={extraWork} />
 
