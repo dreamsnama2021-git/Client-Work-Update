@@ -411,6 +411,23 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_reference_notes: {
+        Row: {
+          id: string;
+          reference_id: string;
+          note: string;
+          link: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reference_id: string;
+          note: string;
+          link?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       client_work_posts: {
         Row: {
           id: string;

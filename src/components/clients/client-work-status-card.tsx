@@ -30,7 +30,7 @@ import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
 import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
 import type {
   ClientExtraWork,
-  ClientReference,
+  ClientReferenceWithNotes,
   ClientService,
   ClientWorkPostWithRevisions,
   ClientWorkSlotWithItems,
@@ -505,7 +505,7 @@ function ReferenceRow({
   reference,
   clientId,
 }: {
-  reference: ClientReference;
+  reference: ClientReferenceWithNotes;
   clientId: string;
 }) {
   const action = updateReference.bind(null, reference.id, clientId);
@@ -556,6 +556,29 @@ function ReferenceRow({
           Rejected · {STAMP_LABEL.format(new Date(reference.client_rejected_at))}
         </p>
       )}
+      {reference.notes.length > 0 && (
+        <div className="space-y-1 rounded-md border border-dashed border-border p-2">
+          <p className="text-[11px] font-medium text-muted-foreground">Changes requested</p>
+          {reference.notes.map((n) => (
+            <div key={n.id} className="space-y-0.5 text-[11px]">
+              <p>{n.note}</p>
+              {n.link && (
+                <a
+                  href={n.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  View client&apos;s link
+                </a>
+              )}
+              <p className="text-muted-foreground">
+                {STAMP_LABEL.format(new Date(n.created_at))}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </form>
   );
 }
@@ -569,7 +592,7 @@ function ReferenceSection({
   clientId: string;
   month: string;
   contentType: SlotContentType;
-  references: ClientReference[];
+  references: ClientReferenceWithNotes[];
 }) {
   const addAction = addReference.bind(null, clientId, month, contentType);
 
@@ -711,7 +734,7 @@ interface ClientWorkStatusCardProps {
   slots: ClientWorkSlotWithItems[];
   posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
-  references: ClientReference[];
+  references: ClientReferenceWithNotes[];
   website: ClientService | null;
 }
 

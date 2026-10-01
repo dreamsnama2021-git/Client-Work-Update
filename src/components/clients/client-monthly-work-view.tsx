@@ -1,12 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
+  addReferenceNote,
   approveExtraWorkAsClient,
   approvePostRevisionAsClient,
   approveReferenceAsClient,
@@ -22,7 +25,7 @@ import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
 import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
 import type {
   ClientExtraWork,
-  ClientReference,
+  ClientReferenceWithNotes,
   ClientService,
   ClientWorkPostWithRevisions,
   ClientWorkSlotItem,
@@ -351,7 +354,94 @@ function PostContentReadout({
   );
 }
 
-function ReferenceReadout({ reference }: { reference: ClientReference }) {
+/** A change request a client can leave once they've rejected a reference —
+ * a free-text note plus an optional link. The first one shows the form
+ * right away; once any note exists, adding another requires the "+". */
+function ReferenceChangeNotes({ reference }: { reference: ClientReferenceWithNotes }) {
+  const [adding, setAdding] = useState(reference.notes.length === 0);
+  const prevNotesLength = useRef(reference.notes.length);
+  const formRef = useRef<HTMLFormElement>(null);
+  const action = addReferenceNote.bind(null, reference.id);
+  const [state, formAction, isPending] = useActionState(action, initialState);
+
+  useEffect(() => {
+    if (reference.notes.length > prevNotesLength.current) {
+      setAdding(false);
+      formRef.current?.reset();
+    }
+    prevNotesLength.current = reference.notes.length;
+  }, [reference.notes.length]);
+
+  return (
+    <div className="space-y-1.5 border-t border-border/60 pt-1.5">
+      {reference.notes.length > 0 && (
+        <div className="space-y-1.5">
+          {reference.notes.map((n) => (
+            <div key={n.id} className="space-y-0.5 rounded bg-muted/40 p-1.5">
+              <p>{n.note}</p>
+              {n.link && (
+                <a
+                  href={n.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  View your link
+                </a>
+              )}
+              <p className="text-muted-foreground">{formatStamp(n.created_at)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {adding ? (
+        <form ref={formRef} action={formAction} className="space-y-1.5">
+          <Textarea
+            name="note"
+            placeholder="What changes would you like?"
+            rows={2}
+            className="text-xs"
+          />
+          <Input
+            name="link"
+            type="url"
+            placeholder="Optional link (e.g. an example)…"
+            className="h-7 text-xs"
+          />
+          <div className="flex items-center gap-1.5">
+            <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
+              {isPending ? "…" : "Submit"}
+            </Button>
+            {reference.notes.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setAdding(false)}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+          {state.error && <p className="text-destructive">{state.error}</p>}
+        </form>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 px-2.5 text-xs"
+          onClick={() => setAdding(true)}
+        >
+          <Plus className="size-3.5" /> Add changes
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ReferenceReadout({ reference }: { reference: ClientReferenceWithNotes }) {
   const approveAction = approveReferenceAsClient.bind(null, reference.id);
   const [approveState, approveFormAction, approvePending] = useActionState(
     approveAction,
@@ -409,6 +499,7 @@ function ReferenceReadout({ reference }: { reference: ClientReference }) {
       {(approveState.error || rejectState.error) && (
         <p className="text-destructive">{approveState.error || rejectState.error}</p>
       )}
+      {rejectedStamp && <ReferenceChangeNotes reference={reference} />}
     </div>
   );
 }
@@ -418,7 +509,7 @@ function ReferenceReadoutSection({
   references,
 }: {
   contentType: SlotContentType;
-  references: ClientReference[];
+  references: ClientReferenceWithNotes[];
 }) {
   const visible = references.filter((r) => r.content_link);
 
@@ -481,7 +572,7 @@ interface ClientMonthlyWorkViewProps {
   slots: ClientWorkSlotWithItems[];
   posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
-  references: ClientReference[];
+  references: ClientReferenceWithNotes[];
   website: ClientService | null;
 }
 

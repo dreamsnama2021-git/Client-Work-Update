@@ -910,6 +910,35 @@ export async function rejectReferenceAsClient(
   return { error: null };
 }
 
+/** Lets the client leave a change-request note (and optional link) on a
+ * reference they've rejected — a flat history, so earlier notes from a
+ * prior rejection round stay visible once the admin posts a new link. */
+export async function addReferenceNote(
+  referenceId: string,
+  _prevState: WorkStatusActionState,
+  formData: FormData,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const note = String(formData.get("note") ?? "").trim();
+  const link = String(formData.get("link") ?? "").trim() || null;
+
+  if (!note) {
+    return { error: "Describe what changes you'd like." };
+  }
+
+  const { error } = await supabase.from("client_reference_notes").insert({
+    reference_id: referenceId,
+    note,
+    link,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
 /** Switches which Work Status template a client sees: "slots" (the
  * original batched-count template) or "posts" (Post 1, Post 2…, with a new
  * link added per post each time the client rejects the current one). */

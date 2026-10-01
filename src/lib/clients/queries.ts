@@ -4,7 +4,7 @@ import type {
   Client,
   ClientExtraWork,
   ClientFilters,
-  ClientReference,
+  ClientReferenceWithNotes,
   ClientService,
   ClientServiceItem,
   ClientWorkPostWithRevisions,
@@ -264,7 +264,7 @@ export async function listClientExtraWork(
 }
 
 export interface ListClientReferencesResult {
-  references: ClientReference[];
+  references: ClientReferenceWithNotes[];
   error: string | null;
 }
 
@@ -279,16 +279,17 @@ export async function listClientReferences(
 
   const { data, error } = await supabase
     .from("client_references")
-    .select("*")
+    .select("*, notes:client_reference_notes(*)")
     .eq("client_id", clientId)
     .eq("month", month)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .order("created_at", { referencedTable: "client_reference_notes", ascending: true });
 
   if (error) {
     return { references: [], error: error.message };
   }
 
-  return { references: data ?? [], error: null };
+  return { references: (data ?? []) as unknown as ClientReferenceWithNotes[], error: null };
 }
 
 export interface ListClientWorkPostsResult {

@@ -27,6 +27,11 @@ export type ClientExtraWork =
   Database["public"]["Tables"]["client_extra_work"]["Row"];
 export type ClientReference =
   Database["public"]["Tables"]["client_references"]["Row"];
+export type ClientReferenceNote =
+  Database["public"]["Tables"]["client_reference_notes"]["Row"];
+export interface ClientReferenceWithNotes extends ClientReference {
+  notes: ClientReferenceNote[];
+}
 export type ClientWorkPost =
   Database["public"]["Tables"]["client_work_posts"]["Row"];
 export type ClientWorkPostRevision =
