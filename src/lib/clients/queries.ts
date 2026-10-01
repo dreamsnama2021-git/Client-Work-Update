@@ -7,6 +7,7 @@ import type {
   ClientReference,
   ClientService,
   ClientServiceItem,
+  ClientWorkPostWithRevisions,
   ClientWorkSlotWithItems,
   ServiceType,
 } from "@/types/client";
@@ -288,6 +289,39 @@ export async function listClientReferences(
   }
 
   return { references: data ?? [], error: null };
+}
+
+export interface ListClientWorkPostsResult {
+  posts: ClientWorkPostWithRevisions[];
+  error: string | null;
+}
+
+/** A client's Post-template static/reel deliverables for one calendar
+ * month, oldest first, each with its revision history ordered by revision
+ * number. `month` must be a first-of-month ISO date, e.g. "2026-09-01". */
+export async function listClientWorkPosts(
+  clientId: string,
+  month: string,
+): Promise<ListClientWorkPostsResult> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("client_work_posts")
+    .select("*, revisions:client_work_post_revisions(*)")
+    .eq("client_id", clientId)
+    .eq("month", month)
+    .order("content_type", { ascending: true })
+    .order("post_number", { ascending: true })
+    .order("revision_number", {
+      referencedTable: "client_work_post_revisions",
+      ascending: true,
+    });
+
+  if (error) {
+    return { posts: [], error: error.message };
+  }
+
+  return { posts: (data ?? []) as unknown as ClientWorkPostWithRevisions[], error: null };
 }
 
 export interface ClientMonthlyWorkSummary {

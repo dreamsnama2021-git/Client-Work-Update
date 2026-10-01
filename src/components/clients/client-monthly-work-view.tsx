@@ -2,15 +2,17 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   approveExtraWorkAsClient,
+  approvePostRevisionAsClient,
   approveReferenceAsClient,
   approveSlotAsClient,
   approveSlotItemAsClient,
+  rejectPostRevisionAsClient,
   rejectReferenceAsClient,
   rejectSlotAsClient,
   rejectSlotItemAsClient,
@@ -22,9 +24,11 @@ import type {
   ClientExtraWork,
   ClientReference,
   ClientService,
+  ClientWorkPostWithRevisions,
   ClientWorkSlotItem,
   ClientWorkSlotWithItems,
   SlotContentType,
+  WorkDisplayTemplate,
 } from "@/types/client";
 
 const initialState: WorkStatusActionState = { error: null };
@@ -233,6 +237,120 @@ function ContentReadout({
   );
 }
 
+function PostRevisionReadout({ post }: { post: ClientWorkPostWithRevisions }) {
+  const latestRevision = post.revisions[post.revisions.length - 1] ?? null;
+  const approveAction = approvePostRevisionAsClient.bind(null, latestRevision?.id ?? "");
+  const [approveState, approveFormAction, approvePending] = useActionState(
+    approveAction,
+    initialState,
+  );
+  const rejectAction = rejectPostRevisionAsClient.bind(null, latestRevision?.id ?? "");
+  const [rejectState, rejectFormAction, rejectPending] = useActionState(
+    rejectAction,
+    initialState,
+  );
+
+  if (!latestRevision) {
+    return (
+      <div className="flex items-center justify-between rounded-md border border-border p-2.5 text-xs">
+        <span className="font-semibold">Post {post.post_number}</span>
+        <span className="text-muted-foreground">Waiting for the team to share a link.</span>
+      </div>
+    );
+  }
+
+  const approvedStamp = formatStamp(latestRevision.client_approved_at);
+  const rejectedStamp = formatStamp(latestRevision.client_rejected_at);
+  const isPending = approvePending || rejectPending;
+
+  return (
+    <div className="space-y-1 rounded-md border border-border p-2.5 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 font-semibold">Post {post.post_number}</span>
+          <a
+            href={latestRevision.content_link}
+            target="_blank"
+            rel="noreferrer"
+            className="truncate text-primary hover:underline"
+          >
+            View
+          </a>
+        </div>
+        {approvedStamp ? (
+          <span className="shrink-0 text-muted-foreground">Approved · {approvedStamp}</span>
+        ) : rejectedStamp ? (
+          <span className="shrink-0 text-destructive">Rejected · {rejectedStamp}</span>
+        ) : (
+          <div className="flex shrink-0 gap-1.5">
+            <form action={approveFormAction}>
+              <Button
+                type="submit"
+                size="icon"
+                disabled={isPending}
+                className="size-7"
+                aria-label="Approve"
+              >
+                <Check className="size-4" />
+              </Button>
+            </form>
+            <form action={rejectFormAction}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="icon"
+                disabled={isPending}
+                className="size-7 text-destructive hover:text-destructive"
+                aria-label="Reject"
+              >
+                <X className="size-4" />
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
+      {(approveState.error || rejectState.error) && (
+        <p className="text-destructive">{approveState.error || rejectState.error}</p>
+      )}
+    </div>
+  );
+}
+
+function PostContentReadout({
+  contentType,
+  target,
+  posts,
+}: {
+  contentType: SlotContentType;
+  target: number | null;
+  posts: ClientWorkPostWithRevisions[];
+}) {
+  const completed = posts.filter(
+    (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
+  ).length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]}</p>
+        <p className="text-xs text-muted-foreground">
+          {completed}
+          {target !== null ? `/${target}` : ""} complete
+        </p>
+      </div>
+      {posts.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nothing logged yet this month.</p>
+      ) : (
+        <div className="space-y-2">
+          {posts.map((post) => (
+            <PostRevisionReadout key={post.id} post={post} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReferenceReadout({ reference }: { reference: ClientReference }) {
   const approveAction = approveReferenceAsClient.bind(null, reference.id);
   const [approveState, approveFormAction, approvePending] = useActionState(
@@ -332,7 +450,9 @@ interface ClientMonthlyWorkViewProps {
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
+  workDisplayTemplate: WorkDisplayTemplate;
   slots: ClientWorkSlotWithItems[];
+  posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
   references: ClientReference[];
   website: ClientService | null;
@@ -344,7 +464,9 @@ export function ClientMonthlyWorkView({
   hasSocialMedia,
   staticTarget,
   reelTarget,
+  workDisplayTemplate,
   slots,
+  posts,
   extraWork,
   references,
   website,
@@ -356,19 +478,29 @@ export function ClientMonthlyWorkView({
   const { prev, next } = adjacentMonths(month);
   const staticSlots = slots.filter((s) => s.content_type === "static");
   const reelSlots = slots.filter((s) => s.content_type === "reel");
+  const staticPosts = posts.filter((p) => p.content_type === "static");
+  const reelPosts = posts.filter((p) => p.content_type === "reel");
+  const usingPosts = workDisplayTemplate === "posts";
   const totalTarget =
     staticTarget !== null || reelTarget !== null
       ? (staticTarget ?? 0) + (reelTarget ?? 0)
       : null;
-  const totals = slots.reduce(
-    (acc, s) => {
-      const { rejected, effective } = getEffectiveCompleted(s);
-      acc.completed += effective;
-      acc.incomplete += rejected;
-      return acc;
-    },
-    { completed: 0, incomplete: 0 },
-  );
+  const totals = usingPosts
+    ? {
+        completed: posts.filter(
+          (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
+        ).length,
+        incomplete: 0,
+      }
+    : slots.reduce(
+        (acc, s) => {
+          const { rejected, effective } = getEffectiveCompleted(s);
+          acc.completed += effective;
+          acc.incomplete += rejected;
+          return acc;
+        },
+        { completed: 0, incomplete: 0 },
+      );
 
   return (
     <Card>
@@ -406,10 +538,17 @@ export function ClientMonthlyWorkView({
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <ContentReadout contentType="static" target={staticTarget} slots={staticSlots} />
-              <ContentReadout contentType="reel" target={reelTarget} slots={reelSlots} />
-            </div>
+            {usingPosts ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <PostContentReadout contentType="static" target={staticTarget} posts={staticPosts} />
+                <PostContentReadout contentType="reel" target={reelTarget} posts={reelPosts} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <ContentReadout contentType="static" target={staticTarget} slots={staticSlots} />
+                <ContentReadout contentType="reel" target={reelTarget} slots={reelSlots} />
+              </div>
+            )}
           </div>
         )}
 

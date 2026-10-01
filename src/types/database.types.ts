@@ -10,6 +10,7 @@ export type WebsiteStatus =
   | "in_making"
   | "maintenance";
 export type SlotContentType = "static" | "reel";
+export type WorkDisplayTemplate = "slots" | "posts";
 export type { ActivityType, Priority, TaskStatus };
 
 export interface Database {
@@ -58,6 +59,7 @@ export interface Database {
           avatar_url: string | null;
           profile_id: string | null;
           created_by: string | null;
+          work_display_template: WorkDisplayTemplate;
           created_at: string;
           updated_at: string;
         };
@@ -73,6 +75,7 @@ export interface Database {
           avatar_url?: string | null;
           profile_id?: string | null;
           created_by?: string | null;
+          work_display_template?: WorkDisplayTemplate;
         };
         Update: {
           company_name?: string;
@@ -84,6 +87,7 @@ export interface Database {
           notes?: string | null;
           avatar_url?: string | null;
           profile_id?: string | null;
+          work_display_template?: WorkDisplayTemplate;
         };
         Relationships: [];
       };
@@ -402,6 +406,51 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_work_posts: {
+        Row: {
+          id: string;
+          client_id: string;
+          month: string;
+          content_type: SlotContentType;
+          post_number: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          month: string;
+          content_type: SlotContentType;
+          post_number: number;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      client_work_post_revisions: {
+        Row: {
+          id: string;
+          post_id: string;
+          revision_number: number;
+          content_link: string;
+          client_approved_at: string | null;
+          client_rejected_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          revision_number: number;
+          content_link: string;
+          client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+        };
+        Update: {
+          client_approved_at?: string | null;
+          client_rejected_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -415,6 +464,7 @@ export interface Database {
       service_type: ServiceType;
       website_status: WebsiteStatus;
       slot_content_type: SlotContentType;
+      work_display_template: WorkDisplayTemplate;
     };
     CompositeTypes: Record<string, never>;
   };

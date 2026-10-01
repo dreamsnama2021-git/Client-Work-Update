@@ -11,14 +11,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addExtraWork,
+  addPostRevision,
   addReference,
+  addWorkPost,
   addWorkSlot,
   deleteExtraWork,
   deleteReference,
+  deleteWorkPost,
   deleteWorkSlot,
   updateClientWebsiteStatus,
   updateExtraWork,
   updateReference,
+  updateWorkDisplayTemplate,
   updateWorkSlot,
   type WorkStatusActionState,
 } from "@/lib/actions/clients";
@@ -28,9 +32,11 @@ import type {
   ClientExtraWork,
   ClientReference,
   ClientService,
+  ClientWorkPostWithRevisions,
   ClientWorkSlotWithItems,
   SlotContentType,
   WebsiteStatus,
+  WorkDisplayTemplate,
 } from "@/types/client";
 
 const initialState: WorkStatusActionState = { error: null };
@@ -278,6 +284,182 @@ function ContentSection({
   );
 }
 
+function TemplateToggle({
+  clientId,
+  template,
+}: {
+  clientId: string;
+  template: WorkDisplayTemplate;
+}) {
+  const setSlots = updateWorkDisplayTemplate.bind(null, clientId, "slots");
+  const setPosts = updateWorkDisplayTemplate.bind(null, clientId, "posts");
+
+  return (
+    <div className="flex gap-1 rounded-md border border-border p-0.5 text-[11px]">
+      <form action={setSlots}>
+        <button
+          type="submit"
+          className={
+            template === "slots"
+              ? "rounded-sm bg-accent px-2 py-1 font-medium"
+              : "px-2 py-1 text-muted-foreground"
+          }
+        >
+          Slots
+        </button>
+      </form>
+      <form action={setPosts}>
+        <button
+          type="submit"
+          className={
+            template === "posts"
+              ? "rounded-sm bg-accent px-2 py-1 font-medium"
+              : "px-2 py-1 text-muted-foreground"
+          }
+        >
+          Posts
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function PostRow({
+  post,
+  clientId,
+}: {
+  post: ClientWorkPostWithRevisions;
+  clientId: string;
+}) {
+  const latestRevision = post.revisions[post.revisions.length - 1] ?? null;
+  const deleteAction = deleteWorkPost.bind(null, post.id, clientId);
+  const addRevisionAction = addPostRevision.bind(null, post.id, clientId);
+  const [state, formAction, isPending] = useActionState(addRevisionAction, initialState);
+
+  const isApproved = latestRevision?.client_approved_at != null;
+  const isRejected = latestRevision?.client_rejected_at != null;
+  const needsLink = !latestRevision || isRejected;
+
+  return (
+    <div className="space-y-2 rounded-md border border-border p-3 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold">Post {post.post_number}</span>
+        <form action={deleteAction}>
+          <Button
+            type="submit"
+            size="icon"
+            variant="ghost"
+            className="size-7 text-destructive hover:text-destructive"
+            aria-label="Delete post"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </form>
+      </div>
+
+      {latestRevision && (
+        <a
+          href={latestRevision.content_link}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate text-primary hover:underline"
+        >
+          Revision {latestRevision.revision_number} link
+        </a>
+      )}
+
+      {isApproved && (
+        <p className="text-[11px] text-success">
+          Approved · {STAMP_LABEL.format(new Date(latestRevision!.client_approved_at!))}
+        </p>
+      )}
+      {isRejected && (
+        <p className="text-[11px] text-destructive">
+          Rejected · {STAMP_LABEL.format(new Date(latestRevision!.client_rejected_at!))} — add a
+          new link below
+        </p>
+      )}
+      {latestRevision && !isApproved && !isRejected && (
+        <p className="text-[11px] text-muted-foreground">Waiting on client review…</p>
+      )}
+
+      {needsLink && (
+        <form action={formAction} className="flex items-center gap-1.5">
+          <Input
+            name="content_link"
+            type="url"
+            placeholder={isRejected ? "New link after changes…" : "https://…"}
+            className="h-7 flex-1 text-xs"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            className="h-7 px-2 text-xs"
+          >
+            {isPending ? "…" : isRejected ? "Add New Link" : "Add Link"}
+          </Button>
+        </form>
+      )}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+    </div>
+  );
+}
+
+function PostContentSection({
+  clientId,
+  month,
+  contentType,
+  target,
+  posts,
+}: {
+  clientId: string;
+  month: string;
+  contentType: SlotContentType;
+  target: number | null;
+  posts: ClientWorkPostWithRevisions[];
+}) {
+  const completed = posts.filter(
+    (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
+  ).length;
+  const addAction = addWorkPost.bind(null, clientId, month, contentType);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">
+          {SLOT_CONTENT_LABELS[contentType]}
+          {target !== null && (
+            <span className="ml-1.5 font-normal text-muted-foreground">
+              target {target}
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {completed}
+          {target !== null ? `/${target}` : ""} complete
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        {posts.map((post) => (
+          <PostRow key={post.id} post={post} clientId={clientId} />
+        ))}
+      </div>
+
+      <form action={addAction}>
+        <button
+          type="submit"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-xs font-medium text-primary transition-colors hover:bg-accent"
+        >
+          <Plus className="size-3.5" /> Add Post
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ReferenceRow({
   reference,
   clientId,
@@ -479,7 +661,9 @@ interface ClientWorkStatusCardProps {
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
+  workDisplayTemplate: WorkDisplayTemplate;
   slots: ClientWorkSlotWithItems[];
+  posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
   references: ClientReference[];
   website: ClientService | null;
@@ -491,7 +675,9 @@ export function ClientWorkStatusCard({
   hasSocialMedia,
   staticTarget,
   reelTarget,
+  workDisplayTemplate,
   slots,
+  posts,
   extraWork,
   references,
   website,
@@ -509,15 +695,25 @@ export function ClientWorkStatusCard({
   const { prev, next } = adjacentMonths(month);
   const staticSlots = slots.filter((s) => s.content_type === "static");
   const reelSlots = slots.filter((s) => s.content_type === "reel");
-  const totals = slots.reduce(
-    (acc, s) => {
-      const { rejected, effective } = getEffectiveCompleted(s);
-      acc.completed += effective;
-      acc.incomplete += rejected;
-      return acc;
-    },
-    { completed: 0, incomplete: 0 },
-  );
+  const staticPosts = posts.filter((p) => p.content_type === "static");
+  const reelPosts = posts.filter((p) => p.content_type === "reel");
+  const usingPosts = workDisplayTemplate === "posts";
+  const totals = usingPosts
+    ? {
+        completed: posts.filter(
+          (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
+        ).length,
+        incomplete: 0,
+      }
+    : slots.reduce(
+        (acc, s) => {
+          const { rejected, effective } = getEffectiveCompleted(s);
+          acc.completed += effective;
+          acc.incomplete += rejected;
+          return acc;
+        },
+        { completed: 0, incomplete: 0 },
+      );
   const totalTarget =
     staticTarget !== null || reelTarget !== null
       ? (staticTarget ?? 0) + (reelTarget ?? 0)
@@ -547,7 +743,10 @@ export function ClientWorkStatusCard({
         {hasSocialMedia && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Social Media</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Social Media</p>
+                <TemplateToggle clientId={clientId} template={workDisplayTemplate} />
+              </div>
               {totalTarget !== null && (
                 <p className="text-xs text-muted-foreground">
                   Total Post: {totals.completed}/{totalTarget}
@@ -560,22 +759,41 @@ export function ClientWorkStatusCard({
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <ContentSection
-                clientId={clientId}
-                month={month}
-                contentType="static"
-                target={staticTarget}
-                slots={staticSlots}
-              />
-              <ContentSection
-                clientId={clientId}
-                month={month}
-                contentType="reel"
-                target={reelTarget}
-                slots={reelSlots}
-              />
-            </div>
+            {usingPosts ? (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <PostContentSection
+                  clientId={clientId}
+                  month={month}
+                  contentType="static"
+                  target={staticTarget}
+                  posts={staticPosts}
+                />
+                <PostContentSection
+                  clientId={clientId}
+                  month={month}
+                  contentType="reel"
+                  target={reelTarget}
+                  posts={reelPosts}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <ContentSection
+                  clientId={clientId}
+                  month={month}
+                  contentType="static"
+                  target={staticTarget}
+                  slots={staticSlots}
+                />
+                <ContentSection
+                  clientId={clientId}
+                  month={month}
+                  contentType="reel"
+                  target={reelTarget}
+                  slots={reelSlots}
+                />
+              </div>
+            )}
           </div>
         )}
 

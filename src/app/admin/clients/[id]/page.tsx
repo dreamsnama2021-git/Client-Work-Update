@@ -26,6 +26,7 @@ import {
   listClientReferences,
   listClientServiceItems,
   listClientServices,
+  listClientWorkPosts,
   listClientWorkSlots,
 } from "@/lib/clients/queries";
 import { listTasks } from "@/lib/tasks/queries";
@@ -81,6 +82,7 @@ export default async function ClientDetailPage({
     { services },
     { items: serviceItems },
     { slots },
+    { posts },
     { items: extraWork },
     { references },
   ] = await Promise.all([
@@ -90,6 +92,7 @@ export default async function ClientDetailPage({
     listClientServices(client.id),
     listClientServiceItems(client.id),
     listClientWorkSlots(client.id, month),
+    listClientWorkPosts(client.id, month),
     listClientExtraWork(client.id, month),
     listClientReferences(client.id, month),
   ]);
@@ -202,7 +205,9 @@ export default async function ClientDetailPage({
         hasSocialMedia={Boolean(socialMediaService)}
         staticTarget={socialMediaService?.static_target ?? null}
         reelTarget={socialMediaService?.reel_target ?? null}
+        workDisplayTemplate={client.work_display_template}
         slots={slots}
+        posts={posts}
         extraWork={extraWork}
         references={references}
         website={websiteService}

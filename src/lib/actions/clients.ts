@@ -903,3 +903,134 @@ export async function rejectReferenceAsClient(
   revalidatePath("/client");
   return { error: null };
 }
+
+/** Switches which Work Status template a client sees: "slots" (the
+ * original batched-count template) or "posts" (Post 1, Post 2…, with a new
+ * link added per post each time the client rejects the current one). */
+export async function updateWorkDisplayTemplate(
+  clientId: string,
+  template: "slots" | "posts",
+) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("clients")
+    .update({ work_display_template: template })
+    .eq("id", clientId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+/** Appends a new (linkless) post for a client's static or reel work in a
+ * given month — admin fills in its first link afterward via
+ * addPostRevision. */
+export async function addWorkPost(
+  clientId: string,
+  month: string,
+  contentType: SlotContentType,
+) {
+  const supabase = await createSupabaseServerClient();
+
+  const { count } = await supabase
+    .from("client_work_posts")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .eq("month", month)
+    .eq("content_type", contentType);
+
+  const { error } = await supabase.from("client_work_posts").insert({
+    client_id: clientId,
+    month,
+    content_type: contentType,
+    post_number: (count ?? 0) + 1,
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteWorkPost(postId: string, clientId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("client_work_posts")
+    .delete()
+    .eq("id", postId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+/** Adds a new revision (link) to a post — used both for the post's first
+ * link and, after the client rejects the current revision, for the
+ * replacement link that goes up for review in its place. */
+export async function addPostRevision(
+  postId: string,
+  clientId: string,
+  _prevState: WorkStatusActionState,
+  formData: FormData,
+): Promise<WorkStatusActionState> {
+  const contentLink = String(formData.get("content_link") ?? "").trim();
+
+  if (!contentLink) {
+    return { error: "Enter a link first." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { count } = await supabase
+    .from("client_work_post_revisions")
+    .select("*", { count: "exact", head: true })
+    .eq("post_id", postId);
+
+  const { error } = await supabase.from("client_work_post_revisions").insert({
+    post_id: postId,
+    revision_number: (count ?? 0) + 1,
+    content_link: contentLink,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/clients/${clientId}`);
+  return { error: null };
+}
+
+/** Lets the client approve a post's current revision — same "must have a
+ * link" gate as approveSlotItemAsClient. */
+export async function approvePostRevisionAsClient(
+  revisionId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("client_work_post_revisions")
+    .update({ client_approved_at: new Date().toISOString(), client_rejected_at: null })
+    .eq("id", revisionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
+/** The rejecting counterpart to approvePostRevisionAsClient. The admin then
+ * adds the next revision for the same post via addPostRevision. */
+export async function rejectPostRevisionAsClient(
+  revisionId: string,
+  _prevState: WorkStatusActionState,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("client_work_post_revisions")
+    .update({ client_rejected_at: new Date().toISOString(), client_approved_at: null })
+    .eq("id", revisionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
