@@ -88,19 +88,26 @@ function SlotItemReadout({ item }: { item: ClientWorkSlotItemWithNotes }) {
         ) : (
           <div className="flex shrink-0 gap-1.5">
             <form action={approveFormAction}>
-              <Button type="submit" size="sm" disabled={isPending} className="h-6 px-2 text-[11px]">
-                {approvePending ? "…" : "Approve"}
+              <Button
+                type="submit"
+                size="icon"
+                disabled={isPending}
+                className="size-6"
+                aria-label="Approve"
+              >
+                <Check className="size-3.5" />
               </Button>
             </form>
             <form action={rejectFormAction}>
               <Button
                 type="submit"
                 variant="outline"
-                size="sm"
+                size="icon"
                 disabled={isPending}
-                className="h-6 px-2 text-[11px] text-destructive hover:text-destructive"
+                className="size-6 text-destructive hover:text-destructive"
+                aria-label="Reject"
               >
-                {rejectPending ? "…" : "Reject"}
+                <X className="size-3.5" />
               </Button>
             </form>
           </div>
@@ -170,22 +177,24 @@ function SlotReadout({ slot }: { slot: ClientWorkSlotWithItems }) {
               <form action={approveFormAction}>
                 <Button
                   type="submit"
-                  size="sm"
+                  size="icon"
                   disabled={isPending}
-                  className="h-7 px-2.5 text-xs"
+                  className="size-7"
+                  aria-label="Approve"
                 >
-                  {approvePending ? "…" : "Approve"}
+                  <Check className="size-4" />
                 </Button>
               </form>
               <form action={rejectFormAction}>
                 <Button
                   type="submit"
                   variant="outline"
-                  size="sm"
+                  size="icon"
                   disabled={isPending}
-                  className="h-7 px-2.5 text-xs text-destructive hover:text-destructive"
+                  className="size-7 text-destructive hover:text-destructive"
+                  aria-label="Reject"
                 >
-                  {rejectPending ? "…" : "Reject"}
+                  <X className="size-4" />
                 </Button>
               </form>
             </div>
@@ -229,9 +238,6 @@ function ContentReadout({
         <p className="text-xs text-muted-foreground">
           {totals.completed}
           {target !== null ? `/${target}` : ""} complete
-          {totals.incomplete > 0 && (
-            <span className="text-destructive"> · {totals.incomplete} incomplete</span>
-          )}
         </p>
       </div>
       {slots.length === 0 ? (
@@ -502,19 +508,26 @@ function ReferenceReadout({ reference }: { reference: ClientReferenceWithNotes }
         ) : (
           <div className="flex shrink-0 gap-1.5">
             <form action={approveFormAction}>
-              <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
-                {approvePending ? "…" : "Approve"}
+              <Button
+                type="submit"
+                size="icon"
+                disabled={isPending}
+                className="size-7"
+                aria-label="Approve"
+              >
+                <Check className="size-4" />
               </Button>
             </form>
             <form action={rejectFormAction}>
               <Button
                 type="submit"
                 variant="outline"
-                size="sm"
+                size="icon"
                 disabled={isPending}
-                className="h-7 px-2.5 text-xs text-destructive hover:text-destructive"
+                className="size-7 text-destructive hover:text-destructive"
+                aria-label="Reject"
               >
-                {rejectPending ? "…" : "Reject"}
+                <X className="size-4" />
               </Button>
             </form>
           </div>
@@ -576,8 +589,14 @@ function ExtraWorkReadout({ item }: { item: ClientExtraWork }) {
           <span className="text-muted-foreground">Approved by you · {clientStamp}</span>
         ) : sentByTeam ? (
           <form action={formAction}>
-            <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
-              {isPending ? "…" : "Approve"}
+            <Button
+              type="submit"
+              size="icon"
+              disabled={isPending}
+              className="size-7"
+              aria-label="Approve"
+            >
+              <Check className="size-4" />
             </Button>
           </form>
         ) : (
@@ -681,9 +700,6 @@ export function ClientMonthlyWorkView({
               {totalTarget !== null && (
                 <p className="text-xs text-muted-foreground">
                   Total Post: {totals.completed}/{totalTarget}
-                  {totals.incomplete > 0 && (
-                    <span className="text-destructive"> · {totals.incomplete} incomplete</span>
-                  )}
                 </p>
               )}
             </div>

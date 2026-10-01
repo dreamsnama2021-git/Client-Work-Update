@@ -378,12 +378,6 @@ function ContentSection({
         <p className="text-xs text-muted-foreground">
           {totals.completed}
           {target !== null ? `/${target}` : ""} complete
-          {totals.incomplete > 0 && (
-            <span className="text-destructive">
-              {" "}
-              · {totals.incomplete} incomplete
-            </span>
-          )}
         </p>
       </div>
 
@@ -899,12 +893,6 @@ export function ClientWorkStatusCard({
               {totalTarget !== null && (
                 <p className="text-xs text-muted-foreground">
                   Total Post: {totals.completed}/{totalTarget}
-                  {totals.incomplete > 0 && (
-                    <span className="text-destructive">
-                      {" "}
-                      · {totals.incomplete} incomplete
-                    </span>
-                  )}
                 </p>
               )}
             </div>
