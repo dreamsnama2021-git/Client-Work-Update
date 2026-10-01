@@ -783,11 +783,16 @@ export async function approveExtraWorkAsClient(
 
 /** Appends a new (blank) reference link for a client in a given month — no
  * target count, the admin just adds as many as needed. */
-export async function addReference(clientId: string, month: string) {
+export async function addReference(
+  clientId: string,
+  month: string,
+  contentType: SlotContentType,
+) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("client_references").insert({
     client_id: clientId,
     month,
+    content_type: contentType,
   });
 
   if (error) throw new Error(error.message);

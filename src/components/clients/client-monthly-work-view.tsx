@@ -215,7 +215,7 @@ function ContentReadout({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]}</p>
+        <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]} Post</p>
         <p className="text-xs text-muted-foreground">
           {totals.completed}
           {target !== null ? `/${target}` : ""} complete
@@ -332,7 +332,7 @@ function PostContentReadout({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]}</p>
+        <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]} Post</p>
         <p className="text-xs text-muted-foreground">
           {completed}
           {target !== null ? `/${target}` : ""} complete
@@ -411,6 +411,31 @@ function ReferenceReadout({ reference }: { reference: ClientReference }) {
   );
 }
 
+function ReferenceReadoutSection({
+  contentType,
+  references,
+}: {
+  contentType: SlotContentType;
+  references: ClientReference[];
+}) {
+  const visible = references.filter((r) => r.content_link);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]} Reference</p>
+      {visible.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nothing shared yet this month.</p>
+      ) : (
+        <div className="space-y-2">
+          {visible.map((reference) => (
+            <ReferenceReadout key={reference.id} reference={reference} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExtraWorkReadout({ item }: { item: ClientExtraWork }) {
   const approveAction = approveExtraWorkAsClient.bind(null, item.id);
   const [state, formAction, isPending] = useActionState(approveAction, initialState);
@@ -480,6 +505,8 @@ export function ClientMonthlyWorkView({
   const reelSlots = slots.filter((s) => s.content_type === "reel");
   const staticPosts = posts.filter((p) => p.content_type === "static");
   const reelPosts = posts.filter((p) => p.content_type === "reel");
+  const staticReferences = references.filter((r) => r.content_type === "static");
+  const reelReferences = references.filter((r) => r.content_type === "reel");
   const usingPosts = workDisplayTemplate === "posts";
   const totalTarget =
     staticTarget !== null || reelTarget !== null
@@ -538,27 +565,23 @@ export function ClientMonthlyWorkView({
                 </p>
               )}
             </div>
-            {usingPosts ? (
+            <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <PostContentReadout contentType="static" target={staticTarget} posts={staticPosts} />
-                <PostContentReadout contentType="reel" target={reelTarget} posts={reelPosts} />
+                <ReferenceReadoutSection contentType="static" references={staticReferences} />
+                {usingPosts ? (
+                  <PostContentReadout contentType="static" target={staticTarget} posts={staticPosts} />
+                ) : (
+                  <ContentReadout contentType="static" target={staticTarget} slots={staticSlots} />
+                )}
               </div>
-            ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <ContentReadout contentType="static" target={staticTarget} slots={staticSlots} />
-                <ContentReadout contentType="reel" target={reelTarget} slots={reelSlots} />
+                <ReferenceReadoutSection contentType="reel" references={reelReferences} />
+                {usingPosts ? (
+                  <PostContentReadout contentType="reel" target={reelTarget} posts={reelPosts} />
+                ) : (
+                  <ContentReadout contentType="reel" target={reelTarget} slots={reelSlots} />
+                )}
               </div>
-            )}
-          </div>
-        )}
-
-        {references.filter((r) => r.content_link).length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Reference</p>
-            <div className="space-y-2">
-              {references.map((reference) => (
-                <ReferenceReadout key={reference.id} reference={reference} />
-              ))}
             </div>
           </div>
         )}

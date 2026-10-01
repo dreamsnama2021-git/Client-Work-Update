@@ -385,6 +385,7 @@ export interface Database {
           id: string;
           client_id: string;
           month: string;
+          content_type: SlotContentType;
           content_link: string | null;
           client_approved_at: string | null;
           client_rejected_at: string | null;
@@ -395,6 +396,7 @@ export interface Database {
           id?: string;
           client_id: string;
           month: string;
+          content_type?: SlotContentType;
           content_link?: string | null;
           client_approved_at?: string | null;
           client_rejected_at?: string | null;

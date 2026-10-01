@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +95,47 @@ function ApprovalTick({
   );
 }
 
+/** A link input with an eye-icon button that opens its current value in a
+ * new tab, so the admin can check a pasted link before saving. Uses a ref
+ * instead of controlled state so it stays a plain uncontrolled form field. */
+function LinkFieldWithPreview({
+  name,
+  defaultValue,
+  placeholder,
+}: {
+  name: string;
+  defaultValue?: string;
+  placeholder?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <>
+      <Input
+        ref={inputRef}
+        name={name}
+        type="url"
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        className="h-7 flex-1 text-xs"
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="size-7 shrink-0"
+        aria-label="Preview link"
+        onClick={() => {
+          const url = inputRef.current?.value.trim();
+          if (url) window.open(url, "_blank", "noopener,noreferrer");
+        }}
+      >
+        <Eye className="size-3.5" />
+      </Button>
+    </>
+  );
+}
+
 function SlotRow({
   slot,
   clientId,
@@ -172,18 +213,20 @@ function SlotRow({
               return (
                 <div key={n} className="flex items-center gap-1.5">
                   <span className="w-4 shrink-0 text-[11px] text-muted-foreground">{n}.</span>
-                  <Input
+                  <LinkFieldWithPreview
                     name={`item_link_${n}`}
-                    type="url"
                     defaultValue={item?.content_link ?? ""}
                     placeholder="https://…"
-                    className="h-7 flex-1 text-xs"
                   />
                   {item?.client_approved_at && (
-                    <span className="shrink-0 text-[11px] text-success">Approved</span>
+                    <span className="shrink-0 text-[11px] text-success">
+                      Approved · {STAMP_LABEL.format(new Date(item.client_approved_at))}
+                    </span>
                   )}
                   {item?.client_rejected_at && (
-                    <span className="shrink-0 text-[11px] text-destructive">Rejected</span>
+                    <span className="shrink-0 text-[11px] text-destructive">
+                      Rejected · {STAMP_LABEL.format(new Date(item.client_rejected_at))}
+                    </span>
                   )}
                 </div>
               );
@@ -247,7 +290,7 @@ function ContentSection({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">
-          {SLOT_CONTENT_LABELS[contentType]}
+          {SLOT_CONTENT_LABELS[contentType]} Post
           {target !== null && (
             <span className="ml-1.5 font-normal text-muted-foreground">
               target {target}
@@ -385,11 +428,9 @@ function PostRow({
 
       {needsLink && (
         <form action={formAction} className="flex items-center gap-1.5">
-          <Input
+          <LinkFieldWithPreview
             name="content_link"
-            type="url"
             placeholder={isRejected ? "New link after changes…" : "https://…"}
-            className="h-7 flex-1 text-xs"
           />
           <Button
             type="submit"
@@ -429,7 +470,7 @@ function PostContentSection({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">
-          {SLOT_CONTENT_LABELS[contentType]}
+          {SLOT_CONTENT_LABELS[contentType]} Post
           {target !== null && (
             <span className="ml-1.5 font-normal text-muted-foreground">
               target {target}
@@ -475,12 +516,10 @@ function ReferenceRow({
     <form action={formAction} className="space-y-1.5 rounded-md border border-border p-3">
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
       <div className="flex items-center gap-1.5">
-        <Input
+        <LinkFieldWithPreview
           name="content_link"
-          type="url"
           defaultValue={reference.content_link ?? ""}
           placeholder="https://…"
-          className="h-7 flex-1 text-xs"
         />
         <Button
           type="submit"
@@ -519,17 +558,19 @@ function ReferenceRow({
 function ReferenceSection({
   clientId,
   month,
+  contentType,
   references,
 }: {
   clientId: string;
   month: string;
+  contentType: SlotContentType;
   references: ClientReference[];
 }) {
-  const addAction = addReference.bind(null, clientId, month);
+  const addAction = addReference.bind(null, clientId, month, contentType);
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">Reference</p>
+      <p className="text-sm font-medium">{SLOT_CONTENT_LABELS[contentType]} Reference</p>
       <p className="text-xs text-muted-foreground">
         Links shared for feedback — the client can approve or reject each one.
       </p>
@@ -697,6 +738,8 @@ export function ClientWorkStatusCard({
   const reelSlots = slots.filter((s) => s.content_type === "reel");
   const staticPosts = posts.filter((p) => p.content_type === "static");
   const reelPosts = posts.filter((p) => p.content_type === "reel");
+  const staticReferences = references.filter((r) => r.content_type === "static");
+  const reelReferences = references.filter((r) => r.content_type === "reel");
   const usingPosts = workDisplayTemplate === "posts";
   const totals = usingPosts
     ? {
@@ -759,45 +802,60 @@ export function ClientWorkStatusCard({
                 </p>
               )}
             </div>
-            {usingPosts ? (
+            <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <PostContentSection
+                <ReferenceSection
                   clientId={clientId}
                   month={month}
                   contentType="static"
-                  target={staticTarget}
-                  posts={staticPosts}
+                  references={staticReferences}
                 />
-                <PostContentSection
-                  clientId={clientId}
-                  month={month}
-                  contentType="reel"
-                  target={reelTarget}
-                  posts={reelPosts}
-                />
+                {usingPosts ? (
+                  <PostContentSection
+                    clientId={clientId}
+                    month={month}
+                    contentType="static"
+                    target={staticTarget}
+                    posts={staticPosts}
+                  />
+                ) : (
+                  <ContentSection
+                    clientId={clientId}
+                    month={month}
+                    contentType="static"
+                    target={staticTarget}
+                    slots={staticSlots}
+                  />
+                )}
               </div>
-            ) : (
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <ContentSection
-                  clientId={clientId}
-                  month={month}
-                  contentType="static"
-                  target={staticTarget}
-                  slots={staticSlots}
-                />
-                <ContentSection
+                <ReferenceSection
                   clientId={clientId}
                   month={month}
                   contentType="reel"
-                  target={reelTarget}
-                  slots={reelSlots}
+                  references={reelReferences}
                 />
+                {usingPosts ? (
+                  <PostContentSection
+                    clientId={clientId}
+                    month={month}
+                    contentType="reel"
+                    target={reelTarget}
+                    posts={reelPosts}
+                  />
+                ) : (
+                  <ContentSection
+                    clientId={clientId}
+                    month={month}
+                    contentType="reel"
+                    target={reelTarget}
+                    slots={reelSlots}
+                  />
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
-
-        <ReferenceSection clientId={clientId} month={month} references={references} />
 
         <ExtraWorkSection clientId={clientId} month={month} items={extraWork} />
 
