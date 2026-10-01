@@ -1096,3 +1096,32 @@ export async function rejectPostRevisionAsClient(
   revalidatePath("/client");
   return { error: null };
 }
+
+/** Lets the client leave a change-request note (and optional link) on a
+ * post revision they've rejected — same flat history as addReferenceNote
+ * and addSlotItemNote. */
+export async function addPostRevisionNote(
+  revisionId: string,
+  _prevState: WorkStatusActionState,
+  formData: FormData,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const note = String(formData.get("note") ?? "").trim();
+  const link = String(formData.get("link") ?? "").trim() || null;
+
+  if (!note) {
+    return { error: "Describe what changes you'd like." };
+  }
+
+  const { error } = await supabase.from("client_work_post_revision_notes").insert({
+    revision_id: revisionId,
+    note,
+    link,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}

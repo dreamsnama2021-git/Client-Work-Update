@@ -502,6 +502,29 @@ function PostRow({
       {latestRevision && !isApproved && !isRejected && (
         <p className="text-[11px] text-muted-foreground">Waiting on client review…</p>
       )}
+      {isRejected && latestRevision!.notes.length > 0 && (
+        <div className="space-y-1 rounded-md border border-dashed border-border p-2">
+          <p className="text-[11px] font-medium text-muted-foreground">Changes requested</p>
+          {latestRevision!.notes.map((note) => (
+            <div key={note.id} className="space-y-0.5 text-[11px]">
+              <p>{note.note}</p>
+              {note.link && (
+                <a
+                  href={note.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  View client&apos;s link
+                </a>
+              )}
+              <p className="text-muted-foreground">
+                {STAMP_LABEL.format(new Date(note.created_at))}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {needsLink && (
         <form action={formAction} className="flex items-center gap-1.5">

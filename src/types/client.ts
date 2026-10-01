@@ -41,8 +41,13 @@ export type ClientWorkPost =
   Database["public"]["Tables"]["client_work_posts"]["Row"];
 export type ClientWorkPostRevision =
   Database["public"]["Tables"]["client_work_post_revisions"]["Row"];
+export type ClientWorkPostRevisionNote =
+  Database["public"]["Tables"]["client_work_post_revision_notes"]["Row"];
+export interface ClientWorkPostRevisionWithNotes extends ClientWorkPostRevision {
+  notes: ClientWorkPostRevisionNote[];
+}
 export interface ClientWorkPostWithRevisions extends ClientWorkPost {
-  revisions: ClientWorkPostRevision[];
+  revisions: ClientWorkPostRevisionWithNotes[];
 }
 export type ClientServiceItem =
   Database["public"]["Tables"]["client_service_items"]["Row"];

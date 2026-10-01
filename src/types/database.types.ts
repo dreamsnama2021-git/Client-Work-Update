@@ -490,6 +490,23 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_work_post_revision_notes: {
+        Row: {
+          id: string;
+          revision_id: string;
+          note: string;
+          link: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          revision_id: string;
+          note: string;
+          link?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

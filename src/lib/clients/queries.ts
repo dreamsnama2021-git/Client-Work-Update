@@ -312,13 +312,17 @@ export async function listClientWorkPosts(
 
   const { data, error } = await supabase
     .from("client_work_posts")
-    .select("*, revisions:client_work_post_revisions(*)")
+    .select("*, revisions:client_work_post_revisions(*, notes:client_work_post_revision_notes(*))")
     .eq("client_id", clientId)
     .eq("month", month)
     .order("content_type", { ascending: true })
     .order("post_number", { ascending: true })
     .order("revision_number", {
       referencedTable: "client_work_post_revisions",
+      ascending: true,
+    })
+    .order("created_at", {
+      referencedTable: "client_work_post_revisions.client_work_post_revision_notes",
       ascending: true,
     });
 

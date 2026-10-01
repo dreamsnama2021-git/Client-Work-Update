@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  addPostRevisionNote,
   addReferenceNote,
   addSlotItemNote,
   approveExtraWorkAsClient,
@@ -345,6 +346,12 @@ function PostRevisionReadout({ post }: { post: ClientWorkPostWithRevisions }) {
       </div>
       {(approveState.error || rejectState.error) && (
         <p className="text-destructive">{approveState.error || rejectState.error}</p>
+      )}
+      {rejectedStamp && (
+        <ChangeRequestNotes
+          notes={latestRevision.notes}
+          addNoteAction={addPostRevisionNote.bind(null, latestRevision.id)}
+        />
       )}
     </div>
   );
