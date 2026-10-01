@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Eye, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Eye, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -275,13 +275,15 @@ function SlotRow({
                       placeholder="https://…"
                     />
                     {item?.client_approved_at && (
-                      <span className="shrink-0 text-[11px] text-success">
-                        Approved · {STAMP_LABEL.format(new Date(item.client_approved_at))}
+                      <span className="flex shrink-0 items-center gap-1 text-[11px] text-success">
+                        <Check className="size-3" />
+                        {STAMP_LABEL.format(new Date(item.client_approved_at))}
                       </span>
                     )}
                     {item?.client_rejected_at && (
-                      <span className="shrink-0 text-[11px] text-destructive">
-                        Rejected · {STAMP_LABEL.format(new Date(item.client_rejected_at))}
+                      <span className="flex shrink-0 items-center gap-1 text-[11px] text-destructive">
+                        <X className="size-3" />
+                        {STAMP_LABEL.format(new Date(item.client_rejected_at))}
                       </span>
                     )}
                   </div>
@@ -326,8 +328,9 @@ function SlotRow({
         />
         <ApprovalTick label="Client" stampedAt={clientStampedAt} readOnly />
         {slot.client_rejected_at && (
-          <span className="text-[11px] text-destructive">
-            Rejected · {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
+          <span className="flex items-center gap-1 text-[11px] text-destructive">
+            <X className="size-3" />
+            {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
           </span>
         )}
         {rejectedCount > 0 && (
@@ -484,14 +487,16 @@ function PostRow({
       )}
 
       {isApproved && (
-        <p className="text-[11px] text-success">
-          Approved · {STAMP_LABEL.format(new Date(latestRevision!.client_approved_at!))}
+        <p className="flex items-center gap-1 text-[11px] text-success">
+          <Check className="size-3" />
+          {STAMP_LABEL.format(new Date(latestRevision!.client_approved_at!))}
         </p>
       )}
       {isRejected && (
-        <p className="text-[11px] text-destructive">
-          Rejected · {STAMP_LABEL.format(new Date(latestRevision!.client_rejected_at!))} — add a
-          new link below
+        <p className="flex items-center gap-1 text-[11px] text-destructive">
+          <X className="size-3" />
+          {STAMP_LABEL.format(new Date(latestRevision!.client_rejected_at!))} — add a new link
+          below
         </p>
       )}
       {latestRevision && !isApproved && !isRejected && (
@@ -619,13 +624,15 @@ function ReferenceRow({
         </p>
       )}
       {reference.client_approved_at && (
-        <p className="text-[11px] text-success">
-          Approved · {STAMP_LABEL.format(new Date(reference.client_approved_at))}
+        <p className="flex items-center gap-1 text-[11px] text-success">
+          <Check className="size-3" />
+          {STAMP_LABEL.format(new Date(reference.client_approved_at))}
         </p>
       )}
       {reference.client_rejected_at && (
-        <p className="text-[11px] text-destructive">
-          Rejected · {STAMP_LABEL.format(new Date(reference.client_rejected_at))}
+        <p className="flex items-center gap-1 text-[11px] text-destructive">
+          <X className="size-3" />
+          {STAMP_LABEL.format(new Date(reference.client_rejected_at))}
         </p>
       )}
       {reference.notes.length > 0 && (

@@ -82,9 +82,15 @@ function SlotItemReadout({ item }: { item: ClientWorkSlotItemWithNotes }) {
           Item {item.item_number}
         </a>
         {approvedStamp ? (
-          <span className="shrink-0 text-muted-foreground">Approved · {approvedStamp}</span>
+          <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+            <Check className="size-3.5" />
+            {approvedStamp}
+          </span>
         ) : rejectedStamp ? (
-          <span className="shrink-0 text-destructive">Rejected · {rejectedStamp}</span>
+          <span className="flex shrink-0 items-center gap-1 text-destructive">
+            <X className="size-3.5" />
+            {rejectedStamp}
+          </span>
         ) : (
           <div className="flex shrink-0 gap-1.5">
             <form action={approveFormAction}>
@@ -169,9 +175,15 @@ function SlotReadout({ slot }: { slot: ClientWorkSlotWithItems }) {
       ) : (
         <div className="space-y-1">
           {approvedStamp ? (
-            <span className="text-muted-foreground">Approved by you · {approvedStamp}</span>
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <Check className="size-3.5" />
+              {approvedStamp}
+            </span>
           ) : rejectedStamp ? (
-            <span className="text-destructive">Rejected by you · {rejectedStamp}</span>
+            <span className="flex items-center gap-1 text-destructive">
+              <X className="size-3.5" />
+              {rejectedStamp}
+            </span>
           ) : teamStamp ? (
             <div className="flex gap-2">
               <form action={approveFormAction}>
@@ -294,9 +306,15 @@ function PostRevisionReadout({ post }: { post: ClientWorkPostWithRevisions }) {
           </a>
         </div>
         {approvedStamp ? (
-          <span className="shrink-0 text-muted-foreground">Approved · {approvedStamp}</span>
+          <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+            <Check className="size-3.5" />
+            {approvedStamp}
+          </span>
         ) : rejectedStamp ? (
-          <span className="shrink-0 text-destructive">Rejected · {rejectedStamp}</span>
+          <span className="flex shrink-0 items-center gap-1 text-destructive">
+            <X className="size-3.5" />
+            {rejectedStamp}
+          </span>
         ) : (
           <div className="flex shrink-0 gap-1.5">
             <form action={approveFormAction}>
@@ -502,9 +520,15 @@ function ReferenceReadout({ reference }: { reference: ClientReferenceWithNotes }
           View reference
         </a>
         {approvedStamp ? (
-          <span className="shrink-0 text-muted-foreground">Approved · {approvedStamp}</span>
+          <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+            <Check className="size-3.5" />
+            {approvedStamp}
+          </span>
         ) : rejectedStamp ? (
-          <span className="shrink-0 text-destructive">Rejected · {rejectedStamp}</span>
+          <span className="flex shrink-0 items-center gap-1 text-destructive">
+            <X className="size-3.5" />
+            {rejectedStamp}
+          </span>
         ) : (
           <div className="flex shrink-0 gap-1.5">
             <form action={approveFormAction}>
@@ -586,7 +610,10 @@ function ExtraWorkReadout({ item }: { item: ClientExtraWork }) {
       </p>
       <div className="space-y-1">
         {clientStamp ? (
-          <span className="text-muted-foreground">Approved by you · {clientStamp}</span>
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <Check className="size-3.5" />
+            {clientStamp}
+          </span>
         ) : sentByTeam ? (
           <form action={formAction}>
             <Button
