@@ -438,7 +438,7 @@ export async function updateWorkSlot(
   ] = await Promise.all([
     supabase
       .from("client_work_slots")
-      .select("ready_at, sent_to_client_at, client_approved_at")
+      .select("ready_at, sent_to_client_at")
       .eq("id", slotId)
       .single(),
     supabase
@@ -459,8 +459,10 @@ export async function updateWorkSlot(
   // Marking work Ready means the team has it in hand for the client, so it
   // counts as sending it to the client even if the box wasn't ticked by hand.
   const teamTicked = formData.get("team_ticked") === "on" || readyAt !== null;
-  const clientTicked = formData.get("client_ticked") === "on";
 
+  // client_approved_at is deliberately left untouched here — it's a client-
+  // only stamp (set via approveSlotAsClient, or derived from item responses
+  // on the dashboard) and the admin form must never be able to set it.
   const { error } = await supabase
     .from("client_work_slots")
     .update({
@@ -468,9 +470,6 @@ export async function updateWorkSlot(
       ready_at: readyAt,
       sent_to_client_at: teamTicked
         ? existing.sent_to_client_at ?? new Date().toISOString()
-        : null,
-      client_approved_at: clientTicked
-        ? existing.client_approved_at ?? new Date().toISOString()
         : null,
     })
     .eq("id", slotId);

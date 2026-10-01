@@ -68,23 +68,56 @@ function getEffectiveCompleted(slot: ClientWorkSlotWithItems) {
   return { rejected, effective: Math.max(slot.completed_count - rejected, 0) };
 }
 
+/** An item is "resolved" once the client has had their say on it — approved
+ * it, or rejected it and explained why. Only ever true from the client's own
+ * actions, never something the admin can set. */
+function isItemResolved(item: { content_link: string | null; client_approved_at: string | null; client_rejected_at: string | null; notes: { created_at: string }[] } | undefined) {
+  if (!item || !item.content_link) return false;
+  if (item.client_approved_at) return true;
+  return item.client_rejected_at !== null && item.notes.length > 0;
+}
+
+function itemResolvedAt(item: { content_link: string | null; client_approved_at: string | null; client_rejected_at: string | null; notes: { created_at: string }[] } | undefined) {
+  if (!item) return null;
+  if (item.client_approved_at) return item.client_approved_at;
+  if (item.client_rejected_at !== null && item.notes.length > 0) {
+    return item.notes[item.notes.length - 1].created_at;
+  }
+  return null;
+}
+
+/** `readOnly` renders a disabled, state-only checkbox (so it's never part of
+ * the form submission) for ticks that must only ever reflect the client's
+ * own actions — never something the admin can set by hand. */
 function ApprovalTick({
   name,
   label,
   stampedAt,
+  readOnly,
 }: {
-  name: string;
+  name?: string;
   label: string;
   stampedAt: string | null;
+  readOnly?: boolean;
 }) {
   return (
     <label className="flex items-center gap-1.5 text-xs">
-      <input
-        type="checkbox"
-        name={name}
-        defaultChecked={stampedAt !== null}
-        className="accent-primary"
-      />
+      {readOnly ? (
+        <input
+          type="checkbox"
+          checked={stampedAt !== null}
+          disabled
+          readOnly
+          className="accent-primary"
+        />
+      ) : (
+        <input
+          type="checkbox"
+          name={name}
+          defaultChecked={stampedAt !== null}
+          className="accent-primary"
+        />
+      )}
       {label}
       {stampedAt && (
         <span className="text-muted-foreground">
@@ -150,7 +183,29 @@ function SlotRow({
   const deleteAction = deleteWorkSlot.bind(null, slot.id, clientId);
   const [count, setCount] = useState(slot.completed_count);
   const itemsByNumber = new Map(slot.items.map((i) => [i.item_number, i]));
-  const rejectedCount = slot.items.filter((i) => i.client_rejected_at !== null).length;
+  // Only counts items still awaiting the client's explanation — one that's
+  // rejected but already has a note isn't nagging for attention anymore.
+  const rejectedCount = slot.items.filter(
+    (i) => i.client_rejected_at !== null && i.notes.length === 0,
+  ).length;
+  const itemNumbers = Array.from({ length: count }, (_, i) => i + 1);
+  const hasItems = count > 0;
+  const allItemsResolved =
+    hasItems && itemNumbers.every((n) => isItemResolved(itemsByNumber.get(n)));
+  const resolvedStamps = itemNumbers
+    .map((n) => itemResolvedAt(itemsByNumber.get(n)))
+    .filter((s): s is string => s !== null);
+  const latestResolvedStamp =
+    resolvedStamps.length > 0
+      ? resolvedStamps.reduce((a, b) => (new Date(a) > new Date(b) ? a : b))
+      : null;
+  // For slots with no per-item review (legacy), fall back to the slot's own
+  // client_approved_at, which only the client's own action ever sets.
+  const clientStampedAt = hasItems
+    ? allItemsResolved
+      ? latestResolvedStamp
+      : null
+    : slot.client_approved_at;
 
   return (
     <form action={formAction} className="space-y-2.5 rounded-md border border-border p-3">
@@ -269,17 +324,13 @@ function SlotRow({
           label="Team"
           stampedAt={slot.sent_to_client_at}
         />
-        <ApprovalTick
-          name="client_ticked"
-          label="Client"
-          stampedAt={slot.client_approved_at}
-        />
+        <ApprovalTick label="Client" stampedAt={clientStampedAt} readOnly />
         {slot.client_rejected_at && (
           <span className="text-[11px] text-destructive">
             Rejected · {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
           </span>
         )}
-        {rejectedCount > 0 && !slot.client_approved_at && (
+        {rejectedCount > 0 && (
           <span className="text-[11px] text-destructive">
             {rejectedCount} item{rejectedCount === 1 ? "" : "s"} rejected
           </span>
