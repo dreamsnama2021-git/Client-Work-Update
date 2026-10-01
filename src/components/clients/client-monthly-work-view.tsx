@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addReferenceNote,
+  addSlotItemNote,
   approveExtraWorkAsClient,
   approvePostRevisionAsClient,
   approveReferenceAsClient,
@@ -28,7 +29,7 @@ import type {
   ClientReferenceWithNotes,
   ClientService,
   ClientWorkPostWithRevisions,
-  ClientWorkSlotItem,
+  ClientWorkSlotItemWithNotes,
   ClientWorkSlotWithItems,
   SlotContentType,
   WorkDisplayTemplate,
@@ -54,7 +55,7 @@ function getEffectiveCompleted(slot: ClientWorkSlotWithItems) {
   return { rejected, effective: Math.max(slot.completed_count - rejected, 0) };
 }
 
-function SlotItemReadout({ item }: { item: ClientWorkSlotItem }) {
+function SlotItemReadout({ item }: { item: ClientWorkSlotItemWithNotes }) {
   const approveAction = approveSlotItemAsClient.bind(null, item.id);
   const [approveState, approveFormAction, approvePending] = useActionState(
     approveAction,
@@ -107,6 +108,12 @@ function SlotItemReadout({ item }: { item: ClientWorkSlotItem }) {
       </div>
       {(approveState.error || rejectState.error) && (
         <p className="text-destructive">{approveState.error || rejectState.error}</p>
+      )}
+      {rejectedStamp && (
+        <ChangeRequestNotes
+          notes={item.notes}
+          addNoteAction={addSlotItemNote.bind(null, item.id)}
+        />
       )}
     </div>
   );
@@ -354,29 +361,46 @@ function PostContentReadout({
   );
 }
 
-/** A change request a client can leave once they've rejected a reference —
+interface ChangeNote {
+  id: string;
+  note: string;
+  link: string | null;
+  created_at: string;
+}
+
+/** A change request a client can leave once they've rejected something —
  * a free-text note plus an optional link. The first one shows the form
- * right away; once any note exists, adding another requires the "+". */
-function ReferenceChangeNotes({ reference }: { reference: ClientReferenceWithNotes }) {
-  const [adding, setAdding] = useState(reference.notes.length === 0);
-  const prevNotesLength = useRef(reference.notes.length);
+ * right away; once any note exists, adding another requires the "+". Shared
+ * by rejected references and rejected slot items, which differ only in
+ * which server action adds the note. */
+function ChangeRequestNotes({
+  notes,
+  addNoteAction,
+}: {
+  notes: ChangeNote[];
+  addNoteAction: (
+    prevState: WorkStatusActionState,
+    formData: FormData,
+  ) => Promise<WorkStatusActionState>;
+}) {
+  const [adding, setAdding] = useState(notes.length === 0);
+  const prevNotesLength = useRef(notes.length);
   const formRef = useRef<HTMLFormElement>(null);
-  const action = addReferenceNote.bind(null, reference.id);
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionState(addNoteAction, initialState);
 
   useEffect(() => {
-    if (reference.notes.length > prevNotesLength.current) {
+    if (notes.length > prevNotesLength.current) {
       setAdding(false);
       formRef.current?.reset();
     }
-    prevNotesLength.current = reference.notes.length;
-  }, [reference.notes.length]);
+    prevNotesLength.current = notes.length;
+  }, [notes.length]);
 
   return (
     <div className="space-y-1.5 border-t border-border/60 pt-1.5">
-      {reference.notes.length > 0 && (
+      {notes.length > 0 && (
         <div className="space-y-1.5">
-          {reference.notes.map((n) => (
+          {notes.map((n) => (
             <div key={n.id} className="space-y-0.5 rounded bg-muted/40 p-1.5">
               <p>{n.note}</p>
               {n.link && (
@@ -412,7 +436,7 @@ function ReferenceChangeNotes({ reference }: { reference: ClientReferenceWithNot
             <Button type="submit" size="sm" disabled={isPending} className="h-7 px-2.5 text-xs">
               {isPending ? "…" : "Submit"}
             </Button>
-            {reference.notes.length > 0 && (
+            {notes.length > 0 && (
               <Button
                 type="button"
                 variant="ghost"
@@ -499,7 +523,12 @@ function ReferenceReadout({ reference }: { reference: ClientReferenceWithNotes }
       {(approveState.error || rejectState.error) && (
         <p className="text-destructive">{approveState.error || rejectState.error}</p>
       )}
-      {rejectedStamp && <ReferenceChangeNotes reference={reference} />}
+      {rejectedStamp && (
+        <ChangeRequestNotes
+          notes={reference.notes}
+          addNoteAction={addReferenceNote.bind(null, reference.id)}
+        />
+      )}
     </div>
   );
 }

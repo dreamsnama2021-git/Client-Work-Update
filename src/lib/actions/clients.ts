@@ -650,6 +650,34 @@ export async function rejectSlotItemAsClient(
   return { error: null };
 }
 
+/** Lets the client leave a change-request note (and optional link) on a
+ * slot item they've rejected — same flat history as addReferenceNote. */
+export async function addSlotItemNote(
+  itemId: string,
+  _prevState: WorkStatusActionState,
+  formData: FormData,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const note = String(formData.get("note") ?? "").trim();
+  const link = String(formData.get("link") ?? "").trim() || null;
+
+  if (!note) {
+    return { error: "Describe what changes you'd like." };
+  }
+
+  const { error } = await supabase.from("client_work_slot_item_notes").insert({
+    item_id: itemId,
+    note,
+    link,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/client");
+  return { error: null };
+}
+
 export async function deleteWorkSlot(slotId: string, clientId: string) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase

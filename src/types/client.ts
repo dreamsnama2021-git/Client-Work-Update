@@ -20,8 +20,13 @@ export type ClientWorkSlot =
   Database["public"]["Tables"]["client_work_slots"]["Row"];
 export type ClientWorkSlotItem =
   Database["public"]["Tables"]["client_work_slot_items"]["Row"];
+export type ClientWorkSlotItemNote =
+  Database["public"]["Tables"]["client_work_slot_item_notes"]["Row"];
+export interface ClientWorkSlotItemWithNotes extends ClientWorkSlotItem {
+  notes: ClientWorkSlotItemNote[];
+}
 export interface ClientWorkSlotWithItems extends ClientWorkSlot {
-  items: ClientWorkSlotItem[];
+  items: ClientWorkSlotItemWithNotes[];
 }
 export type ClientExtraWork =
   Database["public"]["Tables"]["client_extra_work"]["Row"];

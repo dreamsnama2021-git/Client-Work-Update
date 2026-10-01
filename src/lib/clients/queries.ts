@@ -222,12 +222,16 @@ export async function listClientWorkSlots(
 
   const { data, error } = await supabase
     .from("client_work_slots")
-    .select("*, items:client_work_slot_items(*)")
+    .select("*, items:client_work_slot_items(*, notes:client_work_slot_item_notes(*))")
     .eq("client_id", clientId)
     .eq("month", month)
     .order("content_type", { ascending: true })
     .order("slot_number", { ascending: true })
-    .order("item_number", { referencedTable: "client_work_slot_items", ascending: true });
+    .order("item_number", { referencedTable: "client_work_slot_items", ascending: true })
+    .order("created_at", {
+      referencedTable: "client_work_slot_items.client_work_slot_item_notes",
+      ascending: true,
+    });
 
   if (error) {
     return { slots: [], error: error.message };

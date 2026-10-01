@@ -337,6 +337,23 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_work_slot_item_notes: {
+        Row: {
+          id: string;
+          item_id: string;
+          note: string;
+          link: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          note: string;
+          link?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       client_service_items: {
         Row: {
           id: string;

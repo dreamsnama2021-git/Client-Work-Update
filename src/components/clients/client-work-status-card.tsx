@@ -211,22 +211,49 @@ function SlotRow({
             {Array.from({ length: count }, (_, i) => i + 1).map((n) => {
               const item = itemsByNumber.get(n);
               return (
-                <div key={n} className="flex items-center gap-1.5">
-                  <span className="w-4 shrink-0 text-[11px] text-muted-foreground">{n}.</span>
-                  <LinkFieldWithPreview
-                    name={`item_link_${n}`}
-                    defaultValue={item?.content_link ?? ""}
-                    placeholder="https://…"
-                  />
-                  {item?.client_approved_at && (
-                    <span className="shrink-0 text-[11px] text-success">
-                      Approved · {STAMP_LABEL.format(new Date(item.client_approved_at))}
-                    </span>
-                  )}
-                  {item?.client_rejected_at && (
-                    <span className="shrink-0 text-[11px] text-destructive">
-                      Rejected · {STAMP_LABEL.format(new Date(item.client_rejected_at))}
-                    </span>
+                <div key={n} className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-4 shrink-0 text-[11px] text-muted-foreground">{n}.</span>
+                    <LinkFieldWithPreview
+                      name={`item_link_${n}`}
+                      defaultValue={item?.content_link ?? ""}
+                      placeholder="https://…"
+                    />
+                    {item?.client_approved_at && (
+                      <span className="shrink-0 text-[11px] text-success">
+                        Approved · {STAMP_LABEL.format(new Date(item.client_approved_at))}
+                      </span>
+                    )}
+                    {item?.client_rejected_at && (
+                      <span className="shrink-0 text-[11px] text-destructive">
+                        Rejected · {STAMP_LABEL.format(new Date(item.client_rejected_at))}
+                      </span>
+                    )}
+                  </div>
+                  {item && item.notes.length > 0 && (
+                    <div className="ml-5 space-y-1 rounded-md border border-dashed border-border p-2">
+                      <p className="text-[11px] font-medium text-muted-foreground">
+                        Changes requested
+                      </p>
+                      {item.notes.map((note) => (
+                        <div key={note.id} className="space-y-0.5 text-[11px]">
+                          <p>{note.note}</p>
+                          {note.link && (
+                            <a
+                              href={note.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              View client&apos;s link
+                            </a>
+                          )}
+                          <p className="text-muted-foreground">
+                            {STAMP_LABEL.format(new Date(note.created_at))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               );
@@ -252,7 +279,7 @@ function SlotRow({
             Rejected · {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
           </span>
         )}
-        {rejectedCount > 0 && (
+        {rejectedCount > 0 && !slot.client_approved_at && (
           <span className="text-[11px] text-destructive">
             {rejectedCount} item{rejectedCount === 1 ? "" : "s"} rejected
           </span>
