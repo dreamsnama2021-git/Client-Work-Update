@@ -825,6 +825,7 @@ export async function updateReference(
     .from("client_references")
     .update({
       content_link: contentLink,
+      link_added_at: linkChanged ? (contentLink ? new Date().toISOString() : null) : undefined,
       client_approved_at: linkChanged ? null : undefined,
       client_rejected_at: linkChanged ? null : undefined,
     })

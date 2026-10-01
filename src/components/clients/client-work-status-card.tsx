@@ -541,6 +541,11 @@ function ReferenceRow({
           <Trash2 className="size-3.5" />
         </Button>
       </div>
+      {reference.link_added_at && (
+        <p className="text-[11px] text-muted-foreground">
+          Team · {STAMP_LABEL.format(new Date(reference.link_added_at))}
+        </p>
+      )}
       {reference.client_approved_at && (
         <p className="text-[11px] text-success">
           Approved · {STAMP_LABEL.format(new Date(reference.client_approved_at))}

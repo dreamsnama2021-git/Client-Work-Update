@@ -387,6 +387,7 @@ export interface Database {
           month: string;
           content_type: SlotContentType;
           content_link: string | null;
+          link_added_at: string | null;
           client_approved_at: string | null;
           client_rejected_at: string | null;
           created_at: string;
@@ -398,11 +399,13 @@ export interface Database {
           month: string;
           content_type?: SlotContentType;
           content_link?: string | null;
+          link_added_at?: string | null;
           client_approved_at?: string | null;
           client_rejected_at?: string | null;
         };
         Update: {
           content_link?: string | null;
+          link_added_at?: string | null;
           client_approved_at?: string | null;
           client_rejected_at?: string | null;
         };

@@ -362,6 +362,7 @@ function ReferenceReadout({ reference }: { reference: ClientReference }) {
     rejectAction,
     initialState,
   );
+  const teamStamp = formatStamp(reference.link_added_at);
   const approvedStamp = formatStamp(reference.client_approved_at);
   const rejectedStamp = formatStamp(reference.client_rejected_at);
   const isPending = approvePending || rejectPending;
@@ -370,6 +371,7 @@ function ReferenceReadout({ reference }: { reference: ClientReference }) {
 
   return (
     <div className="space-y-1 rounded-md border border-border p-2.5 text-xs">
+      {teamStamp && <p className="text-muted-foreground">Team · {teamStamp}</p>}
       <div className="flex items-center justify-between gap-2">
         <a
           href={reference.content_link}
