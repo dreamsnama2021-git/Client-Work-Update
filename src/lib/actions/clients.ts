@@ -696,18 +696,26 @@ export async function addWorkPost(
 ) {
   const supabase = await createSupabaseServerClient();
 
-  const { count } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from("client_work_posts")
-    .select("*", { count: "exact", head: true })
+    .select("post_number")
     .eq("client_id", clientId)
     .eq("month", month)
     .eq("content_type", contentType);
+
+  if (fetchError) throw new Error(fetchError.message);
+
+  // Lowest unused number, so a deleted Post 1 is refilled instead of
+  // colliding with the next-highest post.
+  const taken = new Set((existing ?? []).map((p) => p.post_number));
+  let postNumber = 1;
+  while (taken.has(postNumber)) postNumber++;
 
   const { error } = await supabase.from("client_work_posts").insert({
     client_id: clientId,
     month,
     content_type: contentType,
-    post_number: (count ?? 0) + 1,
+    post_number: postNumber,
   });
 
   if (error) throw new Error(error.message);
