@@ -526,6 +526,14 @@ function PostRow({
         </div>
       )}
 
+      {latestRevision && (
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-[11px] text-muted-foreground">Approval</span>
+          <ApprovalTick label="Team" stampedAt={latestRevision.created_at} readOnly />
+          <ApprovalTick label="Client" stampedAt={itemResolvedAt(latestRevision)} readOnly />
+        </div>
+      )}
+
       {needsLink && (
         <form action={formAction} className="flex items-center gap-1.5">
           <LinkFieldWithPreview
