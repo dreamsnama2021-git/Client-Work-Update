@@ -16,6 +16,7 @@ import {
   deleteExtraWork,
   deleteReference,
   deleteWorkPost,
+  setMonthTargets,
   updateClientWebsiteStatus,
   updateExtraWork,
   updateReference,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/actions/clients";
 import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
 import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
+import type { LegacyCompleted } from "@/lib/clients/queries";
 import type {
   ClientExtraWork,
   ClientReferenceWithNotes,
@@ -268,16 +270,18 @@ function PostContentSection({
   contentType,
   target,
   posts,
+  legacyCompleted,
 }: {
   clientId: string;
   month: string;
   contentType: SlotContentType;
   target: number | null;
   posts: ClientWorkPostWithRevisions[];
+  legacyCompleted: number;
 }) {
   const completed = posts.filter(
     (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
-  ).length;
+  ).length + legacyCompleted;
   const addAction = addWorkPost.bind(null, clientId, month, contentType);
 
   return (
@@ -296,6 +300,11 @@ function PostContentSection({
           {target !== null ? `/${target}` : ""} complete
         </p>
       </div>
+      {posts.length === 0 && legacyCompleted > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {legacyCompleted} logged before per-post tracking.
+        </p>
+      )}
 
       <div className="space-y-2">
         {posts.map((post) => (
@@ -540,12 +549,72 @@ function ExtraWorkSection({
   );
 }
 
+/** Sets Static/Reel targets from this month onward; earlier months keep
+ * their own numbers. Keyed by month+values so it resets when navigating. */
+function MonthTargetsForm({
+  clientId,
+  month,
+  staticTarget,
+  reelTarget,
+}: {
+  clientId: string;
+  month: string;
+  staticTarget: number | null;
+  reelTarget: number | null;
+}) {
+  const action = setMonthTargets.bind(null, clientId, month);
+  const [state, formAction, isPending] = useActionState(action, initialState);
+
+  return (
+    <form
+      key={`${month}-${staticTarget}-${reelTarget}`}
+      action={formAction}
+      className="flex flex-wrap items-center gap-2 text-xs"
+    >
+      <span className="text-muted-foreground">
+        Target from {formatMonthLabel(month)} onward
+      </span>
+      <label className="flex items-center gap-1">
+        Static
+        <Input
+          name="static_target"
+          type="number"
+          min={0}
+          defaultValue={staticTarget ?? ""}
+          className="h-7 w-16 text-xs"
+        />
+      </label>
+      <label className="flex items-center gap-1">
+        Reel
+        <Input
+          name="reel_target"
+          type="number"
+          min={0}
+          defaultValue={reelTarget ?? ""}
+          className="h-7 w-16 text-xs"
+        />
+      </label>
+      <Button
+        type="submit"
+        size="sm"
+        variant="outline"
+        disabled={isPending}
+        className="h-7 px-2 text-xs"
+      >
+        {isPending ? "…" : "Save"}
+      </Button>
+      {state.error && <span className="text-destructive">{state.error}</span>}
+    </form>
+  );
+}
+
 interface ClientWorkStatusCardProps {
   clientId: string;
   month: string;
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
+  legacyCompleted: LegacyCompleted;
   posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
   references: ClientReferenceWithNotes[];
@@ -558,6 +627,7 @@ export function ClientWorkStatusCard({
   hasSocialMedia,
   staticTarget,
   reelTarget,
+  legacyCompleted,
   posts,
   extraWork,
   references,
@@ -580,7 +650,7 @@ export function ClientWorkStatusCard({
   const reelReferences = references.filter((r) => r.content_type === "reel");
   const completed = posts.filter(
     (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
-  ).length;
+  ).length + legacyCompleted.static + legacyCompleted.reel;
   const totalTarget =
     staticTarget !== null || reelTarget !== null
       ? (staticTarget ?? 0) + (reelTarget ?? 0)
@@ -617,6 +687,12 @@ export function ClientWorkStatusCard({
                 </p>
               )}
             </div>
+            <MonthTargetsForm
+              clientId={clientId}
+              month={month}
+              staticTarget={staticTarget}
+              reelTarget={reelTarget}
+            />
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <ReferenceSection
@@ -631,6 +707,7 @@ export function ClientWorkStatusCard({
                   contentType="static"
                   target={staticTarget}
                   posts={staticPosts}
+                  legacyCompleted={legacyCompleted.static}
                 />
 
               </div>
@@ -647,6 +724,7 @@ export function ClientWorkStatusCard({
                   contentType="reel"
                   target={reelTarget}
                   posts={reelPosts}
+                  legacyCompleted={legacyCompleted.reel}
                 />
 
               </div>

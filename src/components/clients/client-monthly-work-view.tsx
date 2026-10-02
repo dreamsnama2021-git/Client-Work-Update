@@ -20,6 +20,7 @@ import {
 } from "@/lib/actions/clients";
 import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
 import { SLOT_CONTENT_LABELS, WEBSITE_STATUS_LABELS } from "@/types/client";
+import type { LegacyCompleted } from "@/lib/clients/queries";
 import type {
   ClientExtraWork,
   ClientReferenceWithNotes,
@@ -159,14 +160,16 @@ function PostContentReadout({
   contentType,
   target,
   posts,
+  legacyCompleted,
 }: {
   contentType: SlotContentType;
   target: number | null;
   posts: ClientWorkPostWithRevisions[];
+  legacyCompleted: number;
 }) {
   const completed = posts.filter(
     (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
-  ).length;
+  ).length + legacyCompleted;
 
   return (
     <div className="space-y-2">
@@ -178,7 +181,11 @@ function PostContentReadout({
         </p>
       </div>
       {posts.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nothing logged yet this month.</p>
+        <p className="text-xs text-muted-foreground">
+          {legacyCompleted > 0
+            ? `${legacyCompleted} logged before per-post tracking.`
+            : "Nothing logged yet this month."}
+        </p>
       ) : (
         <div className="space-y-2">
           {posts.map((post) => (
@@ -448,6 +455,7 @@ interface ClientMonthlyWorkViewProps {
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
+  legacyCompleted: LegacyCompleted;
   posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
   references: ClientReferenceWithNotes[];
@@ -460,6 +468,7 @@ export function ClientMonthlyWorkView({
   hasSocialMedia,
   staticTarget,
   reelTarget,
+  legacyCompleted,
   posts,
   extraWork,
   references,
@@ -480,7 +489,7 @@ export function ClientMonthlyWorkView({
       : null;
   const completed = posts.filter(
     (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
-  ).length;
+  ).length + legacyCompleted.static + legacyCompleted.reel;
 
   return (
     <Card>
@@ -518,11 +527,21 @@ export function ClientMonthlyWorkView({
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <ReferenceReadoutSection contentType="static" references={staticReferences} />
-                <PostContentReadout contentType="static" target={staticTarget} posts={staticPosts} />
+                <PostContentReadout
+                  contentType="static"
+                  target={staticTarget}
+                  posts={staticPosts}
+                  legacyCompleted={legacyCompleted.static}
+                />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <ReferenceReadoutSection contentType="reel" references={reelReferences} />
-                <PostContentReadout contentType="reel" target={reelTarget} posts={reelPosts} />
+                <PostContentReadout
+                  contentType="reel"
+                  target={reelTarget}
+                  posts={reelPosts}
+                  legacyCompleted={legacyCompleted.reel}
+                />
               </div>
             </div>
           </div>

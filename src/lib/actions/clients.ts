@@ -382,6 +382,33 @@ export type WorkStatusActionState = {
   error: string | null;
 };
 
+/** Sets the Static/Reel targets from this month onward (until a later month
+ * overrides them) — earlier months keep whatever they had. */
+export async function setMonthTargets(
+  clientId: string,
+  month: string,
+  _prevState: WorkStatusActionState,
+  formData: FormData,
+): Promise<WorkStatusActionState> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase.from("client_month_targets").upsert(
+    {
+      client_id: clientId,
+      month,
+      static_target: toIntOrNull(String(formData.get("static_target") ?? "")),
+      reel_target: toIntOrNull(String(formData.get("reel_target") ?? "")),
+    },
+    { onConflict: "client_id,month" },
+  );
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath("/admin");
+  return { error: null };
+}
+
 /** Updates a client's website status — a standing state, not tracked
  * per-month like the social media numbers. */
 export async function updateClientWebsiteStatus(

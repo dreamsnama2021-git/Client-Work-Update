@@ -507,6 +507,29 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      client_month_targets: {
+        Row: {
+          id: string;
+          client_id: string;
+          month: string;
+          static_target: number | null;
+          reel_target: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          month: string;
+          static_target?: number | null;
+          reel_target?: number | null;
+        };
+        Update: {
+          static_target?: number | null;
+          reel_target?: number | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

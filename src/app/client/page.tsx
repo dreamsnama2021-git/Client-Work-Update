@@ -14,6 +14,8 @@ import { ClientMonthlyWorkView } from "@/components/clients/client-monthly-work-
 import { ClientServicesCard } from "@/components/clients/client-services-card";
 import {
   getMyClientRecord,
+  getClientMonthTargets,
+  getLegacyCompleted,
   listClientExtraWork,
   listClientReferences,
   listClientServiceItems,
@@ -64,6 +66,11 @@ export default async function ClientDashboardPage({
   ]);
 
   const socialMediaService = services.find((s) => s.service_type === "social_media") ?? null;
+  const legacyCompleted = await getLegacyCompleted(client.id, month);
+  const targets = await getClientMonthTargets(client.id, month, {
+    staticTarget: socialMediaService?.static_target ?? null,
+    reelTarget: socialMediaService?.reel_target ?? null,
+  });
   const websiteService = services.find((s) => s.service_type === "website") ?? null;
 
   return (
@@ -83,8 +90,9 @@ export default async function ClientDashboardPage({
         basePath="/client"
         month={month}
         hasSocialMedia={Boolean(socialMediaService)}
-        staticTarget={socialMediaService?.static_target ?? null}
-        reelTarget={socialMediaService?.reel_target ?? null}
+        staticTarget={targets.staticTarget}
+        reelTarget={targets.reelTarget}
+        legacyCompleted={legacyCompleted}
         posts={posts}
         extraWork={extraWork}
         references={references}

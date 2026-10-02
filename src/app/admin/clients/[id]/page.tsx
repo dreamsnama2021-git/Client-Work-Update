@@ -21,6 +21,8 @@ import { TasksTable } from "@/components/tasks/tasks-table";
 import { ApprovalsTable } from "@/components/approvals/approvals-table";
 import {
   getClientById,
+  getClientMonthTargets,
+  getLegacyCompleted,
   getPortalAccountEmail,
   listClientExtraWork,
   listClientReferences,
@@ -95,6 +97,11 @@ export default async function ClientDetailPage({
   ]);
 
   const socialMediaService = services.find((s) => s.service_type === "social_media") ?? null;
+  const legacyCompleted = await getLegacyCompleted(client.id, month);
+  const targets = await getClientMonthTargets(client.id, month, {
+    staticTarget: socialMediaService?.static_target ?? null,
+    reelTarget: socialMediaService?.reel_target ?? null,
+  });
   const websiteService = services.find((s) => s.service_type === "website") ?? null;
 
   return (
@@ -200,8 +207,9 @@ export default async function ClientDetailPage({
         clientId={client.id}
         month={month}
         hasSocialMedia={Boolean(socialMediaService)}
-        staticTarget={socialMediaService?.static_target ?? null}
-        reelTarget={socialMediaService?.reel_target ?? null}
+        staticTarget={targets.staticTarget}
+        reelTarget={targets.reelTarget}
+        legacyCompleted={legacyCompleted}
         posts={posts}
         extraWork={extraWork}
         references={references}

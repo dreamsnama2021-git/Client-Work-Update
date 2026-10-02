@@ -298,6 +298,85 @@ export async function listClientWorkPosts(
   return { posts: (data ?? []) as unknown as ClientWorkPostWithRevisions[], error: null };
 }
 
+export interface MonthTargets {
+  staticTarget: number | null;
+  reelTarget: number | null;
+}
+
+interface TargetRow {
+  month: string;
+  static_target: number | null;
+  reel_target: number | null;
+}
+
+/** The latest override at or before `month` wins; otherwise the client's
+ * baseline from client_services. Months are first-of-month ISO dates, so
+ * plain string comparison orders them correctly. */
+function resolveTargets(
+  baseline: MonthTargets,
+  overrides: TargetRow[],
+  month: string,
+): MonthTargets {
+  const latest = overrides
+    .filter((o) => o.month <= month)
+    .sort((a, b) => b.month.localeCompare(a.month))[0];
+  return latest
+    ? { staticTarget: latest.static_target, reelTarget: latest.reel_target }
+    : baseline;
+}
+
+/** A client's Static/Reel targets for one month — see resolveTargets. */
+export async function getClientMonthTargets(
+  clientId: string,
+  month: string,
+  baseline: MonthTargets,
+): Promise<MonthTargets> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data } = await supabase
+    .from("client_month_targets")
+    .select("month, static_target, reel_target")
+    .eq("client_id", clientId)
+    .lte("month", month);
+
+  return resolveTargets(baseline, data ?? [], month);
+}
+
+export interface LegacyCompleted {
+  static: number;
+  reel: number;
+}
+
+/** Completed counts logged under the old Slots layout, which can't be turned
+ * into posts (no per-post links). Only used for months with no posts, so a
+ * month that has moved to posts never double-counts. */
+export async function getLegacyCompleted(
+  clientId: string,
+  month: string,
+): Promise<LegacyCompleted> {
+  const supabase = await createSupabaseServerClient();
+
+  const [postsResult, slotsResult] = await Promise.all([
+    supabase
+      .from("client_work_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("client_id", clientId)
+      .eq("month", month),
+    supabase
+      .from("client_work_slots")
+      .select("content_type, completed_count")
+      .eq("client_id", clientId)
+      .eq("month", month),
+  ]);
+
+  const totals: LegacyCompleted = { static: 0, reel: 0 };
+  if ((postsResult.count ?? 0) > 0) return totals;
+  for (const slot of slotsResult.data ?? []) {
+    totals[slot.content_type] += slot.completed_count;
+  }
+  return totals;
+}
+
 export interface ClientMonthlyWorkSummary {
   client: { id: string; company_name: string };
   staticTarget: number | null;
@@ -311,18 +390,27 @@ export interface ListMonthlyWorkResult {
   error: string | null;
 }
 
-/** Every social-media client's static/reel progress for one month (summed
- * across all their slots), for the admin dashboard's monthly work overview. */
+/** Every social-media client's static/reel progress for one month (posts
+ * whose latest revision the client approved), for the admin dashboard's
+ * monthly work overview. */
 export async function listMonthlyWorkForMonth(
   month: string,
 ): Promise<ListMonthlyWorkResult> {
   const supabase = await createSupabaseServerClient();
 
-  const [servicesResult, slotsResult] = await Promise.all([
+  const [servicesResult, postsResult, targetsResult, slotsResult] = await Promise.all([
     supabase
       .from("client_services")
       .select("static_target, reel_target, client:clients(id, company_name)")
       .eq("service_type", "social_media"),
+    supabase
+      .from("client_work_posts")
+      .select("client_id, content_type, revisions:client_work_post_revisions(revision_number, client_approved_at)")
+      .eq("month", month),
+    supabase
+      .from("client_month_targets")
+      .select("client_id, month, static_target, reel_target")
+      .lte("month", month),
     supabase
       .from("client_work_slots")
       .select("client_id, content_type, completed_count")
@@ -331,6 +419,12 @@ export async function listMonthlyWorkForMonth(
 
   if (servicesResult.error) {
     return { summaries: [], error: servicesResult.error.message };
+  }
+  if (postsResult.error) {
+    return { summaries: [], error: postsResult.error.message };
+  }
+  if (targetsResult.error) {
+    return { summaries: [], error: targetsResult.error.message };
   }
   if (slotsResult.error) {
     return { summaries: [], error: slotsResult.error.message };
@@ -342,8 +436,27 @@ export async function listMonthlyWorkForMonth(
     client: { id: string; company_name: string } | null;
   }[];
 
+  const posts = postsResult.data as unknown as {
+    client_id: string;
+    content_type: "static" | "reel";
+    revisions: { revision_number: number; client_approved_at: string | null }[];
+  }[];
+
   const totalsByClientId = new Map<string, { static: number; reel: number }>();
+  for (const post of posts) {
+    const latest = [...post.revisions].sort(
+      (a, b) => b.revision_number - a.revision_number,
+    )[0];
+    if (!latest?.client_approved_at) continue;
+    const totals = totalsByClientId.get(post.client_id) ?? { static: 0, reel: 0 };
+    totals[post.content_type] += 1;
+    totalsByClientId.set(post.client_id, totals);
+  }
+
+  // Legacy slot counts only count for clients with no posts that month.
+  const clientsWithPosts = new Set(posts.map((p) => p.client_id));
   for (const slot of slotsResult.data) {
+    if (clientsWithPosts.has(slot.client_id)) continue;
     const totals = totalsByClientId.get(slot.client_id) ?? { static: 0, reel: 0 };
     totals[slot.content_type] += slot.completed_count;
     totalsByClientId.set(slot.client_id, totals);
@@ -353,10 +466,15 @@ export async function listMonthlyWorkForMonth(
     .filter((s) => s.client)
     .map((s) => {
       const totals = totalsByClientId.get(s.client!.id);
+      const targets = resolveTargets(
+        { staticTarget: s.static_target, reelTarget: s.reel_target },
+        targetsResult.data.filter((t) => t.client_id === s.client!.id),
+        month,
+      );
       return {
         client: s.client!,
-        staticTarget: s.static_target,
-        reelTarget: s.reel_target,
+        staticTarget: targets.staticTarget,
+        reelTarget: targets.reelTarget,
         staticCompleted: totals?.static ?? 0,
         reelCompleted: totals?.reel ?? 0,
       };
