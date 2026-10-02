@@ -8,7 +8,6 @@ import type {
   ClientService,
   ClientServiceItem,
   ClientWorkPostWithRevisions,
-  ClientWorkSlotWithItems,
   ServiceType,
 } from "@/types/client";
 
@@ -204,40 +203,6 @@ export async function listClientsByService(): Promise<ListClientsByServiceResult
   }));
 
   return { groups, error: null };
-}
-
-export interface ListClientWorkSlotsResult {
-  slots: ClientWorkSlotWithItems[];
-  error: string | null;
-}
-
-/** A client's static + reel slots for one calendar month, oldest first, each
- * with its per-unit review items ordered by item_number. `month` must be a
- * first-of-month ISO date, e.g. "2026-09-01". */
-export async function listClientWorkSlots(
-  clientId: string,
-  month: string,
-): Promise<ListClientWorkSlotsResult> {
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("client_work_slots")
-    .select("*, items:client_work_slot_items(*, notes:client_work_slot_item_notes(*))")
-    .eq("client_id", clientId)
-    .eq("month", month)
-    .order("content_type", { ascending: true })
-    .order("slot_number", { ascending: true })
-    .order("item_number", { referencedTable: "client_work_slot_items", ascending: true })
-    .order("created_at", {
-      referencedTable: "client_work_slot_items.client_work_slot_item_notes",
-      ascending: true,
-    });
-
-  if (error) {
-    return { slots: [], error: error.message };
-  }
-
-  return { slots: (data ?? []) as unknown as ClientWorkSlotWithItems[], error: null };
 }
 
 export interface ListClientExtraWorkResult {

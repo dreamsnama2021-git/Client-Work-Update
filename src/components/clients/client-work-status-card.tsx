@@ -1,29 +1,24 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, ChevronRight, Eye, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addExtraWork,
   addPostRevision,
   addReference,
   addWorkPost,
-  addWorkSlot,
   deleteExtraWork,
   deleteReference,
   deleteWorkPost,
-  deleteWorkSlot,
   updateClientWebsiteStatus,
   updateExtraWork,
   updateReference,
-  updateWorkDisplayTemplate,
-  updateWorkSlot,
   type WorkStatusActionState,
 } from "@/lib/actions/clients";
 import { adjacentMonths, formatMonthLabel } from "@/lib/month-param";
@@ -33,10 +28,8 @@ import type {
   ClientReferenceWithNotes,
   ClientService,
   ClientWorkPostWithRevisions,
-  ClientWorkSlotWithItems,
   SlotContentType,
   WebsiteStatus,
-  WorkDisplayTemplate,
 } from "@/types/client";
 
 const initialState: WorkStatusActionState = { error: null };
@@ -53,29 +46,6 @@ const STAMP_LABEL = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
 });
-
-function toDatetimeLocal(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** A rejected item no longer counts as complete — it moves to incomplete
- * until the admin swaps in a new link for that item number. */
-function getEffectiveCompleted(slot: ClientWorkSlotWithItems) {
-  const rejected = slot.items.filter((i) => i.client_rejected_at !== null).length;
-  return { rejected, effective: Math.max(slot.completed_count - rejected, 0) };
-}
-
-/** An item is "resolved" once the client has had their say on it — approved
- * it, or rejected it and explained why. Only ever true from the client's own
- * actions, never something the admin can set. */
-function isItemResolved(item: { content_link: string | null; client_approved_at: string | null; client_rejected_at: string | null; notes: { created_at: string }[] } | undefined) {
-  if (!item || !item.content_link) return false;
-  if (item.client_approved_at) return true;
-  return item.client_rejected_at !== null && item.notes.length > 0;
-}
 
 function itemResolvedAt(item: { content_link: string | null; client_approved_at: string | null; client_rejected_at: string | null; notes: { created_at: string }[] } | undefined) {
   if (!item) return null;
@@ -166,279 +136,6 @@ function LinkFieldWithPreview({
         <Eye className="size-3.5" />
       </Button>
     </>
-  );
-}
-
-function SlotRow({
-  slot,
-  clientId,
-  target,
-}: {
-  slot: ClientWorkSlotWithItems;
-  clientId: string;
-  target: number | null;
-}) {
-  const action = updateWorkSlot.bind(null, slot.id, clientId);
-  const [state, formAction, isPending] = useActionState(action, initialState);
-  const deleteAction = deleteWorkSlot.bind(null, slot.id, clientId);
-  const [count, setCount] = useState(slot.completed_count);
-  const itemsByNumber = new Map(slot.items.map((i) => [i.item_number, i]));
-  // Only counts items still awaiting the client's explanation — one that's
-  // rejected but already has a note isn't nagging for attention anymore.
-  const rejectedCount = slot.items.filter(
-    (i) => i.client_rejected_at !== null && i.notes.length === 0,
-  ).length;
-  const itemNumbers = Array.from({ length: count }, (_, i) => i + 1);
-  const hasItems = count > 0;
-  const allItemsResolved =
-    hasItems && itemNumbers.every((n) => isItemResolved(itemsByNumber.get(n)));
-  const resolvedStamps = itemNumbers
-    .map((n) => itemResolvedAt(itemsByNumber.get(n)))
-    .filter((s): s is string => s !== null);
-  const latestResolvedStamp =
-    resolvedStamps.length > 0
-      ? resolvedStamps.reduce((a, b) => (new Date(a) > new Date(b) ? a : b))
-      : null;
-  // For slots with no per-item review (legacy), fall back to the slot's own
-  // client_approved_at, which only the client's own action ever sets.
-  const clientStampedAt = hasItems
-    ? allItemsResolved
-      ? latestResolvedStamp
-      : null
-    : slot.client_approved_at;
-
-  return (
-    <form action={formAction} className="space-y-2.5 rounded-md border border-border p-3">
-      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold">Slot {slot.slot_number}</span>
-        <div className="flex items-center gap-1.5">
-          <Input
-            name="completed_count"
-            type="number"
-            min={0}
-            value={count}
-            onChange={(e) => setCount(Number(e.target.value) || 0)}
-            className="h-7 w-16 text-xs"
-          />
-          {target !== null && (
-            <span className="text-xs text-muted-foreground">/ {target}</span>
-          )}
-          <Button
-            type="submit"
-            size="sm"
-            variant="outline"
-            disabled={isPending}
-            className="h-7 px-2 text-xs"
-          >
-            {isPending ? "…" : "Save"}
-          </Button>
-          <Button
-            type="submit"
-            formAction={deleteAction}
-            size="icon"
-            variant="ghost"
-            className="size-7 text-destructive hover:text-destructive"
-            aria-label="Delete slot"
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        <Label className="text-[11px] font-normal text-muted-foreground">Ready</Label>
-        <Input
-          name="ready_at"
-          type="datetime-local"
-          defaultValue={toDatetimeLocal(slot.ready_at)}
-          className="h-7 text-xs"
-        />
-      </div>
-
-      {count > 0 && (
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-normal text-muted-foreground">
-            Links ({count} {count === 1 ? "item" : "items"} to review)
-          </Label>
-          <div className="space-y-1.5">
-            {Array.from({ length: count }, (_, i) => i + 1).map((n) => {
-              const item = itemsByNumber.get(n);
-              return (
-                <div key={n} className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-4 shrink-0 text-[11px] text-muted-foreground">{n}.</span>
-                    <LinkFieldWithPreview
-                      name={`item_link_${n}`}
-                      defaultValue={item?.content_link ?? ""}
-                      placeholder="https://…"
-                    />
-                    {item?.client_approved_at && (
-                      <span className="flex shrink-0 items-center gap-1 text-[11px] text-success">
-                        <Check className="size-3" />
-                        {STAMP_LABEL.format(new Date(item.client_approved_at))}
-                      </span>
-                    )}
-                    {item?.client_rejected_at && (
-                      <span className="flex shrink-0 items-center gap-1 text-[11px] text-destructive">
-                        <X className="size-3" />
-                        {STAMP_LABEL.format(new Date(item.client_rejected_at))}
-                      </span>
-                    )}
-                  </div>
-                  {item && item.notes.length > 0 && (
-                    <div className="ml-5 space-y-1 rounded-md border border-dashed border-border p-2">
-                      <p className="text-[11px] font-medium text-muted-foreground">
-                        Changes requested
-                      </p>
-                      {item.notes.map((note) => (
-                        <div key={note.id} className="space-y-0.5 text-[11px]">
-                          <p>{note.note}</p>
-                          {note.link && (
-                            <a
-                              href={note.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              View client&apos;s link
-                            </a>
-                          )}
-                          <p className="text-muted-foreground">
-                            {STAMP_LABEL.format(new Date(note.created_at))}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-4">
-        <span className="text-[11px] text-muted-foreground">Approval</span>
-        <ApprovalTick
-          name="team_ticked"
-          label="Team"
-          stampedAt={slot.sent_to_client_at}
-        />
-        <ApprovalTick label="Client" stampedAt={clientStampedAt} readOnly />
-        {slot.client_rejected_at && (
-          <span className="flex items-center gap-1 text-[11px] text-destructive">
-            <X className="size-3" />
-            {STAMP_LABEL.format(new Date(slot.client_rejected_at))}
-          </span>
-        )}
-        {rejectedCount > 0 && (
-          <span className="text-[11px] text-destructive">
-            {rejectedCount} item{rejectedCount === 1 ? "" : "s"} rejected
-          </span>
-        )}
-      </div>
-    </form>
-  );
-}
-
-function ContentSection({
-  clientId,
-  month,
-  contentType,
-  target,
-  slots,
-}: {
-  clientId: string;
-  month: string;
-  contentType: SlotContentType;
-  target: number | null;
-  slots: ClientWorkSlotWithItems[];
-}) {
-  const totals = slots.reduce(
-    (acc, s) => {
-      const { rejected, effective } = getEffectiveCompleted(s);
-      acc.completed += effective;
-      acc.incomplete += rejected;
-      return acc;
-    },
-    { completed: 0, incomplete: 0 },
-  );
-  const addAction = addWorkSlot.bind(null, clientId, month, contentType);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">
-          {SLOT_CONTENT_LABELS[contentType]} Post
-          {target !== null && (
-            <span className="ml-1.5 font-normal text-muted-foreground">
-              target {target}
-            </span>
-          )}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {totals.completed}
-          {target !== null ? `/${target}` : ""} complete
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {slots.map((slot) => (
-          <SlotRow key={slot.id} slot={slot} clientId={clientId} target={target} />
-        ))}
-      </div>
-
-      <form action={addAction}>
-        <button
-          type="submit"
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-xs font-medium text-primary transition-colors hover:bg-accent"
-        >
-          <Plus className="size-3.5" /> Add Slot
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function TemplateToggle({
-  clientId,
-  template,
-}: {
-  clientId: string;
-  template: WorkDisplayTemplate;
-}) {
-  const setSlots = updateWorkDisplayTemplate.bind(null, clientId, "slots");
-  const setPosts = updateWorkDisplayTemplate.bind(null, clientId, "posts");
-
-  return (
-    <div className="flex gap-1 rounded-md border border-border p-0.5 text-[11px]">
-      <form action={setSlots}>
-        <button
-          type="submit"
-          className={
-            template === "slots"
-              ? "rounded-sm bg-accent px-2 py-1 font-medium"
-              : "px-2 py-1 text-muted-foreground"
-          }
-        >
-          Slots
-        </button>
-      </form>
-      <form action={setPosts}>
-        <button
-          type="submit"
-          className={
-            template === "posts"
-              ? "rounded-sm bg-accent px-2 py-1 font-medium"
-              : "px-2 py-1 text-muted-foreground"
-          }
-        >
-          Posts
-        </button>
-      </form>
-    </div>
   );
 }
 
@@ -849,8 +546,6 @@ interface ClientWorkStatusCardProps {
   hasSocialMedia: boolean;
   staticTarget: number | null;
   reelTarget: number | null;
-  workDisplayTemplate: WorkDisplayTemplate;
-  slots: ClientWorkSlotWithItems[];
   posts: ClientWorkPostWithRevisions[];
   extraWork: ClientExtraWork[];
   references: ClientReferenceWithNotes[];
@@ -863,8 +558,6 @@ export function ClientWorkStatusCard({
   hasSocialMedia,
   staticTarget,
   reelTarget,
-  workDisplayTemplate,
-  slots,
   posts,
   extraWork,
   references,
@@ -881,29 +574,13 @@ export function ClientWorkStatusCard({
   }
 
   const { prev, next } = adjacentMonths(month);
-  const staticSlots = slots.filter((s) => s.content_type === "static");
-  const reelSlots = slots.filter((s) => s.content_type === "reel");
   const staticPosts = posts.filter((p) => p.content_type === "static");
   const reelPosts = posts.filter((p) => p.content_type === "reel");
   const staticReferences = references.filter((r) => r.content_type === "static");
   const reelReferences = references.filter((r) => r.content_type === "reel");
-  const usingPosts = workDisplayTemplate === "posts";
-  const totals = usingPosts
-    ? {
-        completed: posts.filter(
-          (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
-        ).length,
-        incomplete: 0,
-      }
-    : slots.reduce(
-        (acc, s) => {
-          const { rejected, effective } = getEffectiveCompleted(s);
-          acc.completed += effective;
-          acc.incomplete += rejected;
-          return acc;
-        },
-        { completed: 0, incomplete: 0 },
-      );
+  const completed = posts.filter(
+    (p) => p.revisions[p.revisions.length - 1]?.client_approved_at != null,
+  ).length;
   const totalTarget =
     staticTarget !== null || reelTarget !== null
       ? (staticTarget ?? 0) + (reelTarget ?? 0)
@@ -933,13 +610,10 @@ export function ClientWorkStatusCard({
         {hasSocialMedia && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">Social Media</p>
-                <TemplateToggle clientId={clientId} template={workDisplayTemplate} />
-              </div>
+              <p className="text-sm font-medium">Social Media</p>
               {totalTarget !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Total Post: {totals.completed}/{totalTarget}
+                  Total Post: {completed}/{totalTarget}
                 </p>
               )}
             </div>
@@ -951,23 +625,14 @@ export function ClientWorkStatusCard({
                   contentType="static"
                   references={staticReferences}
                 />
-                {usingPosts ? (
-                  <PostContentSection
-                    clientId={clientId}
-                    month={month}
-                    contentType="static"
-                    target={staticTarget}
-                    posts={staticPosts}
-                  />
-                ) : (
-                  <ContentSection
-                    clientId={clientId}
-                    month={month}
-                    contentType="static"
-                    target={staticTarget}
-                    slots={staticSlots}
-                  />
-                )}
+                <PostContentSection
+                  clientId={clientId}
+                  month={month}
+                  contentType="static"
+                  target={staticTarget}
+                  posts={staticPosts}
+                />
+
               </div>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <ReferenceSection
@@ -976,23 +641,14 @@ export function ClientWorkStatusCard({
                   contentType="reel"
                   references={reelReferences}
                 />
-                {usingPosts ? (
-                  <PostContentSection
-                    clientId={clientId}
-                    month={month}
-                    contentType="reel"
-                    target={reelTarget}
-                    posts={reelPosts}
-                  />
-                ) : (
-                  <ContentSection
-                    clientId={clientId}
-                    month={month}
-                    contentType="reel"
-                    target={reelTarget}
-                    slots={reelSlots}
-                  />
-                )}
+                <PostContentSection
+                  clientId={clientId}
+                  month={month}
+                  contentType="reel"
+                  target={reelTarget}
+                  posts={reelPosts}
+                />
+
               </div>
             </div>
           </div>

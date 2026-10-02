@@ -4,7 +4,6 @@ import type {
   ServiceType,
   SlotContentType,
   WebsiteStatus,
-  WorkDisplayTemplate,
 } from "./database.types";
 
 export type {
@@ -12,22 +11,9 @@ export type {
   ServiceType,
   WebsiteStatus,
   SlotContentType,
-  WorkDisplayTemplate,
 };
 export type Client = Database["public"]["Tables"]["clients"]["Row"];
 export type ClientService = Database["public"]["Tables"]["client_services"]["Row"];
-export type ClientWorkSlot =
-  Database["public"]["Tables"]["client_work_slots"]["Row"];
-export type ClientWorkSlotItem =
-  Database["public"]["Tables"]["client_work_slot_items"]["Row"];
-export type ClientWorkSlotItemNote =
-  Database["public"]["Tables"]["client_work_slot_item_notes"]["Row"];
-export interface ClientWorkSlotItemWithNotes extends ClientWorkSlotItem {
-  notes: ClientWorkSlotItemNote[];
-}
-export interface ClientWorkSlotWithItems extends ClientWorkSlot {
-  items: ClientWorkSlotItemWithNotes[];
-}
 export type ClientExtraWork =
   Database["public"]["Tables"]["client_extra_work"]["Row"];
 export type ClientReference =
