@@ -347,6 +347,29 @@ function PostRevisionReadout({ post }: { post: ClientWorkPostWithRevisions }) {
       {(approveState.error || rejectState.error) && (
         <p className="text-destructive">{approveState.error || rejectState.error}</p>
       )}
+      {post.revisions.slice(0, -1).some((r) => r.notes.length > 0) && (
+        <div className="space-y-1.5 border-t border-border/60 pt-1.5">
+          {post.revisions.slice(0, -1).flatMap((r) =>
+            r.notes.map((n) => (
+              <div key={n.id} className="space-y-0.5 rounded bg-muted/40 p-1.5">
+                <p className="font-medium text-muted-foreground">Revision {r.revision_number}</p>
+                <p>{n.note}</p>
+                {n.link && (
+                  <a
+                    href={n.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    View your link
+                  </a>
+                )}
+                <p className="text-muted-foreground">{formatStamp(n.created_at)}</p>
+              </div>
+            )),
+          )}
+        </div>
+      )}
       {rejectedStamp && (
         <ChangeRequestNotes
           notes={latestRevision.notes}
